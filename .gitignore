@@ -1,0 +1,33 @@
+*.pdf
+*.png
+*.zip
+data/cellseez.csv
+data/CLASS.xlsx
+data/eez_to_int.csv
+data/full_data_inds.csv.gz
+data/megamove_v21_metadatamore_taxa.csv
+data/megamove_v21_timecell_format0.csv
+data/Proyecto EEZ
+data/species_to_int.csv
+data/Continents/ref-coastline-2016-10m.shp.zip
+data/Continents/ref-coastline-2016-60m.shp.zip
+data/Continents/ref-coastline-2016-10m.shp/COAS_RG_10M_2016_3035.shp.zip
+data/Continents/ref-coastline-2016-10m.shp/COAS_RG_10M_2016_3857.shp.zip
+data/Continents/ref-coastline-2016-10m.shp/COAS_RG_10M_2016_4326.shp.zip
+data/Continents/ref-coastline-2016-10m.shp/release-notes.txt
+data/Continents/ref-coastline-2016-60m.shp/COAS_RG_60M_2016_3035.shp.zip
+data/Continents/ref-coastline-2016-60m.shp/COAS_RG_60M_2016_3857.shp.zip
+data/Continents/ref-coastline-2016-60m.shp/COAS_RG_60M_2016_4326.shp.zip
+data/Continents/ref-coastline-2016-60m.shp/release-notes.txt
+data/Continents/ref-coastline-2016-60m.shp/COAS_RG_60M_2016_4326.shp/COAS_RG_60M_2016_4326.cpg
+data/Continents/ref-coastline-2016-60m.shp/COAS_RG_60M_2016_4326.shp/COAS_RG_60M_2016_4326.dbf
+data/Continents/ref-coastline-2016-60m.shp/COAS_RG_60M_2016_4326.shp/COAS_RG_60M_2016_4326.prj
+data/Continents/ref-coastline-2016-60m.shp/COAS_RG_60M_2016_4326.shp/COAS_RG_60M_2016_4326.shp
+data/Continents/ref-coastline-2016-60m.shp/COAS_RG_60M_2016_4326.shp/COAS_RG_60M_2016_4326.shx
+data/EEZ shapefile/EEZ_land_v2_201410.dbf
+data/EEZ shapefile/EEZ_land_v2_201410.prj
+data/EEZ shapefile/EEZ_land_v2_201410.sbn
+data/EEZ shapefile/EEZ_land_v2_201410.sbx
+data/EEZ shapefile/EEZ_land_v2_201410.shp
+data/EEZ shapefile/EEZ_land_v2_201410.shp.xml
+data/EEZ shapefile/EEZ_land_v2_201410.shx

@@ -12,6 +12,7 @@ int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
 agg_data = combine(groupby(trajectories, [:newid, :Species, :EEZ]), "timestay (1/30days)" => sum)
 @assert sum(agg_data[:, end])/30 == length(unique(agg_data[:, :newid])) "Total time (/30) in days is not equal to the number of individuals"
 unique_pairs = unique(agg_data[:, ["newid", "Species", "EEZ"]])
+ids_species  = unique(agg_data[:, ["newid", "Species"]])
 
 # First mode: random list of EEZs, 
 
@@ -37,12 +38,12 @@ function random_perc_1_rep(data, rng)
     end
     return protected_ids, protected_times, protencted_numer
 end
-n = 1000
+n = 10
 
 # create a function that calls to the previous function n times, saves the results as Vector{Vector{Int64}} and returns the median of the number of protected individuals at each time
 
-function random_perc(data, n)
-    rng = MersenneTwister(1234)
+function random_perc(data, n; seed=1234)
+    rng = MersenneTwister(seed)
     protected_ids = Vector{Vector{Int64}}(undef, n)
     protected_times = Vector{Vector{Int64}}(undef, n)
     protected_number = Vector{Vector{Int64}}(undef, n)
@@ -53,6 +54,16 @@ function random_perc(data, n)
 end
 
 protected_ids, protected_times, protected_number = @time random_perc(agg_data, n)
+
+
+# count the number of times each unique Species appear in agg_data
+species_counts = combine(nrow,groupby(ids_species,:Species))
+species_to_size = Dict(zip(species_counts[:, :Species], species_counts[:, :nrow]))
+##
+
+function species_protected(prot_ids, prot_t, species_dict)
+    prot_species = [species_dict[id] for id in prot_ids]
+    
 
 
 
@@ -84,6 +95,7 @@ function median_protected(prot_times)
 end
 
 all_times, median_protected_numbers, cum_protected = @time median_protected(protected_times)
+##
 
 # plot the median of the number of protected individuals at each time
 plot(xlabel = "Time", ylabel = "Number of protected individuals", legend = false)
@@ -93,5 +105,27 @@ end
 plot!(all_times, median_protected_numbers, xlabel = "Time", ylabel = "Number of protected individuals", legend = false, color=:black)
 plot!()
 
+##
+
+function random_percolation(data; n=10, seed=1234)
+    protected_ids, protected_times, protected_number = @time random_perc(agg_data, n)
+    all_times, median_protected_numbers, cum_protected = @time median_protected(protected_times)
+    plot(xlabel = "EEZs protecting", ylabel = "Number of protected individuals", legend = false)
+    for i in 1:n
+        plot!(unique(protected_times[i]), cumsum(protected_number[i]))
+    end
+    plot!(all_times, median_protected_numbers, color=:black)
+    plot!()
+
+    return protected_ids, protected_times, protected_number, all_times, median_protected_numbers, cum_protected
+end
+
+random_percolation(agg_data)
+
+##
+# we also can see how the number of protected species increases with time
+# for this, we need to identify the species of each individual, set a threhold of 50% of the individuals of a species protected to consider it protected, and then compute the number of protected species at each time
+
+# get the species of each individual
 
 # plot how the number of protected individuals increases with ti

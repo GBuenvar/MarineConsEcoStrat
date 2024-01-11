@@ -94,7 +94,4 @@ plot!(all_times, median_protected_numbers, xlabel = "Time", ylabel = "Number of 
 plot!()
 
 
-
-
-
 # plot how the number of protected individuals increases with ti

@@ -1,19 +1,14 @@
 ##
 using CSV, DataFrames, Random, Statistics, Plots
 ##
-# open the full_data_inds.csv.gz file
 trajectories = CSV.read("data/full_data_inds.csv.gz", DataFrame)
-# Read the codes dictionaries of the species and the eezs
 eez_codes = CSV.read("data/eez_to_int.csv", DataFrame)
 int_to_eez = Dict(zip(eez_codes.Int, eez_codes.EEZ))
-
 species_codes = CSV.read("data/species_to_int.csv", DataFrame)
 int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
 
-##
-
-# Since I am only interested in some specific fields of the data, I will create a new dataframe with only those fields
-
+# aggregate the data by individual, species and EEZ, and compute the total time spent in each EEZ.
+# we are not interested in the rest of fields
 agg_data = combine(groupby(trajectories, [:newid, :Species, :EEZ]), "timestay (1/30days)" => sum)
 @assert sum(agg_data[:, end])/30 == length(unique(agg_data[:, :newid])) "Total time (/30) in days is not equal to the number of individuals"
 unique_pairs = unique(agg_data[:, ["newid", "Species", "EEZ"]])
@@ -42,7 +37,7 @@ function random_perc_1_rep(data, rng)
     end
     return protected_ids, protected_times, protencted_numer
 end
-n = 10
+n = 1000
 
 # create a function that calls to the previous function n times, saves the results as Vector{Vector{Int64}} and returns the median of the number of protected individuals at each time
 
@@ -60,11 +55,6 @@ end
 protected_ids, protected_times, protected_number = @time random_perc(agg_data, n)
 
 
-plot(xlabel = "Time", ylabel = "Number of protected individuals", legend = false)
-for i in 1:n
-    plot!(unique(protected_times[i]), cumsum(protected_number[i]))
-end
-plot!()
 
 # compute the median of the number of protected individuals at each time.
 # for this, create a vector for each possible time values present on every simulation.

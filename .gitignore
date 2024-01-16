@@ -31,3 +31,9 @@ data/EEZ shapefile/EEZ_land_v2_201410.sbx
 data/EEZ shapefile/EEZ_land_v2_201410.shp
 data/EEZ shapefile/EEZ_land_v2_201410.shp.xml
 data/EEZ shapefile/EEZ_land_v2_201410.shx
+percolation/median_protected_number.csv.gz
+percolation/median_protected_species_number.csv.gz
+percolation/protected_number.csv.gz
+percolation/protected_species_number.csv.gz
+percolation/protected_species_times.csv.gz
+percolation/protected_times.csv.gz

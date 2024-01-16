@@ -1,6 +1,39 @@
 ##
-using CSV, DataFrames, Random, Statistics, Plots
+using CSV, DataFrames, Random, Statistics, Plots, ArgParse
 ##
+s = ArgParseSettings()
+@add_arg_table! s begin
+    "--nrep", "n"
+        help = "Number of repetitions"
+        default = 100
+        arg_type = Int64
+    "--seed", "s"
+        help = "Seed for the random number generator"
+        default = 1234
+        arg_type = Int64
+    "--threshold", "t"
+        help = "Threshold for the number of individuals of a species that need to be protected"
+        default = 0.5
+        arg_type = Float64
+    "--data", "d"
+        help = "Path to the data file"
+        default = "data/full_data_inds.csv.gz"
+        arg_type = String
+    "--eez", "e"
+        help = "Path to the eez file"
+        default = "data/eez_to_int.csv"
+        arg_type = String
+    "--species", "sp"
+        help = "Path to the species file"
+        default = "data/species_to_int.csv"
+        arg_type = String
+    "--output", "o"
+        help = "Path to the output folder"
+        default = "percolation"
+        arg_type = String
+end
+
+
 
 # open the full_data_inds.csv.gz file
 
@@ -87,6 +120,13 @@ function median_protected(prot_number)
 end
 
 median_protected_number = @time median_protected(protected_number)
+##
+
+# save outputs in compressed files
+CSV.write("percolation/protected_times.csv.gz", DataFrame(protected_times, :auto))
+CSV.write("percolation/protected_number.csv.gz", DataFrame(protected_number, :auto))
+CSV.write("percolation/median_protected_number.csv.gz", DataFrame(median_protected_number, :auto))
+
 
 ##
 p1 = plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false)
@@ -134,3 +174,9 @@ end
 plot!(median_protected_species_number[1, :] ./ length(unique(species_id)), lw = 1.5, color=:black)
 savefig("percolation/figures/random_protected_species.pdf")
 
+##
+
+# save outputs in compressed files
+CSV.write("percolation/protected_species_number.csv.gz", DataFrame(protected_species_number, :auto))
+CSV.write("percolation/protected_species_times.csv.gz", DataFrame(protected_species_times, :auto))
+CSV.write("percolation/median_protected_species_number.csv.gz", DataFrame(median_protected_species_number, :auto))

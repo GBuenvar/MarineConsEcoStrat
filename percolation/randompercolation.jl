@@ -3,35 +3,25 @@ using CSV, DataFrames, Random, Statistics, Plots, ArgParse
 ##
 s = ArgParseSettings()
 @add_arg_table! s begin
-    "--nrep", "n"
+    "--nrep", "-n"
         help = "Number of repetitions"
-        default = 100
+        default = 10
         arg_type = Int64
-    "--seed", "s"
+    "--seed", "-s"
         help = "Seed for the random number generator"
         default = 1234
         arg_type = Int64
-    "--threshold", "t"
+    "--threshold", "-t"
         help = "Threshold for the number of individuals of a species that need to be protected"
         default = 0.5
         arg_type = Float64
-    "--data", "d"
-        help = "Path to the data file"
-        default = "data/full_data_inds.csv.gz"
-        arg_type = String
-    "--eez", "e"
-        help = "Path to the eez file"
-        default = "data/eez_to_int.csv"
-        arg_type = String
-    "--species", "sp"
-        help = "Path to the species file"
-        default = "data/species_to_int.csv"
-        arg_type = String
-    "--output", "o"
-        help = "Path to the output folder"
-        default = "percolation"
-        arg_type = String
 end
+
+p = parse_args(ARGS, s)
+
+n = p["nrep"]
+seed = p["seed"]
+threshold = p["threshold"]
 
 
 
@@ -47,7 +37,6 @@ int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
 
 
 ##
-
 # Since I am only interested in some specific fields of the data, I will create a new dataframe with only those fields
 
 agg_data = combine(groupby(trajectories, [:newid, :Species, :EEZ]), "timestay (1/30days)" => sum)
@@ -55,9 +44,6 @@ agg_data = combine(groupby(trajectories, [:newid, :Species, :EEZ]), "timestay (1
 unique_pairs = unique(agg_data[:, ["newid", "Species", "EEZ"]])
 id_to_species_int = Dict(zip(agg_data.newid, agg_data.Species))
 newids = unique(agg_data[:, :newid])
-# First mode: random list of EEZs, 
-
-n = 100
 N = length(newids)
 ##
 function random_perc_1_rep(data; rng = MersenneTwister(1234), newids = unique(data[:, :newid]), eezlist = unique(data[:, :EEZ]))
@@ -93,9 +79,7 @@ end
 
 
 ##
-
 # create a function that calls to the previous function n times, saves the results as Vector{Vector{Int64}} and returns the median of the number of protected individuals at each time
-
 function random_perc(data, n; seed = 1234)
     rng = MersenneTwister(seed)
     newids = unique(data[:, :newid])
@@ -108,9 +92,7 @@ function random_perc(data, n; seed = 1234)
     return prot_times, prot_number
 end
 
-protected_times, protected_number = @time random_perc(agg_data, n)
 
-##
 function median_protected(prot_number)
     # compute the cumulative sum of each row
     cum_prot = cumsum(prot_number, dims = 2)
@@ -118,26 +100,6 @@ function median_protected(prot_number)
     median_prot = median(cum_prot, dims = 1)
     return median_prot
 end
-
-median_protected_number = @time median_protected(protected_number)
-##
-
-# save outputs in compressed files
-CSV.write("percolation/protected_times.csv.gz", DataFrame(protected_times, :auto))
-CSV.write("percolation/protected_number.csv.gz", DataFrame(protected_number, :auto))
-CSV.write("percolation/median_protected_number.csv.gz", DataFrame(median_protected_number, :auto))
-
-
-##
-p1 = plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false)
-for i in 1:n
-    plot!(p1, cumsum(protected_number[i, :]) ./ N)
-end
-plot!(p1, median_protected_number[1, :] ./ N, lw = 1.5, color=:black)
-plot!(p1)
-savefig(p1, "percolation/figures/random_protected_ids.pdf")
-
-##
 
 
 function protected_species(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
@@ -164,18 +126,38 @@ function protected_species(prot_number, prot_times, dict_id_species, newids; thr
     return species, prot_species_number, prot_species_times
 end
 
+function plot_trajectories_median(prot_number, median_prot_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "none")
+    p1 = plot(xlabel = xlabel, ylabel = ylabel, legend = legend, dpi = dpi)
+    for i in 1:n
+        plot!(p1, cumsum(prot_number[i, :]) ./ N)
+    end
+    plot!(p1, median_prot_number[1, :] ./ N, lw = 1.5, color=:black)
+    if namesave != "none"
+        savefig(p1, namesave)
+    end
+    return p1
+end
+
+##
+protected_times, protected_number = @time random_perc(agg_data, n)
+median_protected_number = @time median_protected(protected_number)
+
+
+##
+p_inds = plot_trajectories_median(protected_number, median_protected_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_ids.pdf")
+# save outputs in compressed files
+CSV.write("percolation/protected_times.csv.gz", DataFrame(protected_times, :auto))
+CSV.write("percolation/protected_number.csv.gz", DataFrame(protected_number, :auto))
+CSV.write("percolation/median_protected_number.csv.gz", DataFrame(median_protected_number, :auto))
+
+##
 species_id, protected_species_number, protected_species_times = @time protected_species(protected_number, protected_times, id_to_species_int, newids)
 median_protected_species_number = @time median_protected(protected_species_number)
 
-plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected species", legend = false, dpi = 300)
-for i in 1:n
-    plot!(cumsum(protected_species_number[i, :]) ./ length(unique(species_id)))
-end
-plot!(median_protected_species_number[1, :] ./ length(unique(species_id)), lw = 1.5, color=:black)
-savefig("percolation/figures/random_protected_species.pdf")
+
 
 ##
-
+p_species = plot_trajectories_median(protected_species_number, median_protected_species_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected species", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_species.pdf")
 # save outputs in compressed files
 CSV.write("percolation/protected_species_number.csv.gz", DataFrame(protected_species_number, :auto))
 CSV.write("percolation/protected_species_times.csv.gz", DataFrame(protected_species_times, :auto))

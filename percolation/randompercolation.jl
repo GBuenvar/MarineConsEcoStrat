@@ -61,6 +61,7 @@ function random_perc_1_rep(data; rng = MersenneTwister(1234), newids = unique(da
         prot_number[1] = length(new_protected_ids)
         prot_times[newids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
     end
+    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
     random_eezlist = shuffle(rng, eezlist[eezlist .!= -1])
     @views for (t, eez) in enumerate(random_eezlist)
         data = data[data[:, :EEZ] .!= eez, :]    # protect a new EEZ
@@ -133,7 +134,8 @@ function plot_trajectories_median(prot_number, median_prot_number; xlabel = "# E
     end
     plot!(p1, median_prot_number[1, :] ./ N, lw = 1.5, color=:black)
     if namesave != "none"
-        savefig(p1, namesave)
+        savefig(p1, namesave*".png", dpi = dpi)
+        savefig(p1, namesave*".pdf", dpi = dpi)
     end
     return p1
 end
@@ -144,7 +146,7 @@ median_protected_number = @time median_protected(protected_number)
 
 
 ##
-p_inds = plot_trajectories_median(protected_number, median_protected_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_ids.pdf")
+p_inds = plot_trajectories_median(protected_number, median_protected_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_ids")
 # save outputs in compressed files
 CSV.write("percolation/protected_times.csv.gz", DataFrame(protected_times, :auto))
 CSV.write("percolation/protected_number.csv.gz", DataFrame(protected_number, :auto))
@@ -157,7 +159,7 @@ median_protected_species_number = @time median_protected(protected_species_numbe
 
 
 ##
-p_species = plot_trajectories_median(protected_species_number, median_protected_species_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected species", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_species.pdf")
+p_species = plot_trajectories_median(protected_species_number, median_protected_species_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected species", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_species")
 # save outputs in compressed files
 CSV.write("percolation/protected_species_number.csv.gz", DataFrame(protected_species_number, :auto))
 CSV.write("percolation/protected_species_times.csv.gz", DataFrame(protected_species_times, :auto))

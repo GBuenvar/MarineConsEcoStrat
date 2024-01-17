@@ -34,7 +34,7 @@ int_to_eez = Dict(zip(eez_codes.Int, eez_codes.EEZ))
 
 species_codes = CSV.read("data/species_to_int.csv", DataFrame)
 int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
-
+mkpath("percolation/random")
 
 ##
 # Since I am only interested in some specific fields of the data, I will create a new dataframe with only those fields
@@ -134,8 +134,8 @@ function plot_trajectories_median(prot_number, median_prot_number; xlabel = "# E
     end
     plot!(p1, median_prot_number[1, :] ./ N, lw = 1.5, color=:black)
     if namesave != "none"
-        savefig(p1, namesave*".png", dpi = dpi)
-        savefig(p1, namesave*".pdf", dpi = dpi)
+        savefig(p1, namesave*".png")
+        savefig(p1, namesave*".pdf")
     end
     return p1
 end
@@ -148,9 +148,9 @@ median_protected_number = @time median_protected(protected_number)
 ##
 p_inds = plot_trajectories_median(protected_number, median_protected_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_ids")
 # save outputs in compressed files
-CSV.write("percolation/protected_times.csv.gz", DataFrame(protected_times, :auto))
-CSV.write("percolation/protected_number.csv.gz", DataFrame(protected_number, :auto))
-CSV.write("percolation/median_protected_number.csv.gz", DataFrame(median_protected_number, :auto))
+CSV.write("percolation/random/protected_times.csv.gz", DataFrame(protected_times, :auto))
+CSV.write("percolation/random/protected_number.csv.gz", DataFrame(protected_number, :auto))
+CSV.write("percolation/random/median_protected_number.csv.gz", DataFrame(median_protected_number, :auto))
 
 ##
 species_id, protected_species_number, protected_species_times = @time protected_species(protected_number, protected_times, id_to_species_int, newids)
@@ -161,6 +161,6 @@ median_protected_species_number = @time median_protected(protected_species_numbe
 ##
 p_species = plot_trajectories_median(protected_species_number, median_protected_species_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected species", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_species")
 # save outputs in compressed files
-CSV.write("percolation/protected_species_number.csv.gz", DataFrame(protected_species_number, :auto))
-CSV.write("percolation/protected_species_times.csv.gz", DataFrame(protected_species_times, :auto))
-CSV.write("percolation/median_protected_species_number.csv.gz", DataFrame(median_protected_species_number, :auto))
+CSV.write("percolation/random/protected_species_number.csv.gz", DataFrame(protected_species_number, :auto))
+CSV.write("percolation/random/protected_species_times.csv.gz", DataFrame(protected_species_times, :auto))
+CSV.write("percolation/random/median_protected_species_number.csv.gz", DataFrame(median_protected_species_number, :auto))

@@ -37,3 +37,5 @@ percolation/protected_number.csv.gz
 percolation/protected_species_number.csv.gz
 percolation/protected_species_times.csv.gz
 percolation/protected_times.csv.gz
+percolation/random/
+percolation/Strat1/

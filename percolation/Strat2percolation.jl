@@ -2,12 +2,11 @@
 using CSV, DataFrames, Random, Statistics, Plots
 ##
 
-# En este lo que se trata es de mirar cuántos individuaos visitan cada EEZ, 
-# en funcion de eso, proteger en orden ascendente/descendente. Cada vez que se protege,
-# se mira cuántos individuos se han protegido. Igual que en la aleatoria, el output es
-# el numero de individuos protegidos en cada paso y el numero de EEZ protegidas antes de
-# que cada individuo se proteja.
-
+# En este caso miramos cuales son los individuos que son más fáciles de proteger, es decir,
+# los que visitan menos EEZs, P. De las EEZs visitadas por los individuos P que sean más fáciles de proteger,
+# se protegen primero las que más individuos P visitan. Cada vez que se protege una EEZ, se recalculan los individuos
+# que son más fáciles de proteger, y se repite el proceso. El output es el numero de individuos protegidos en cada paso
+# y el numero de EEZ protegidas antes de que cada individuo se proteja.
 
 ##
 # open the full_data_inds.csv.gz file
@@ -19,9 +18,7 @@ int_to_eez = Dict(zip(eez_codes.Int, eez_codes.EEZ))
 
 species_codes = CSV.read("data/species_to_int.csv", DataFrame)
 int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
-
-mkpath("percolation/Strat1")
-
+mkpath("percolation/Strat2")
 
 ##
 # Since I am only interested in some specific fields of the data, I will create a new dataframe with only those fields
@@ -32,25 +29,15 @@ id_to_species_int = Dict(zip(agg_data.newid, agg_data.Species))
 newids = unique(agg_data[:, :newid])
 N = length(newids)
 N_species = length(unique(agg_data[:, :Species]))
+##
 
-function count_and_sort(df, ord)
-    df = combine(groupby(df, :EEZ), nrow)
-    rename!(df, Dict(:nrow => :n_ids))
-    sort!(df, :n_ids, rev = (ord == "desc"))
-    df = vcat(df[df[:, :EEZ] .== -1, :], df[df[:, :EEZ] .!= -1, :])
-    return df
-end
-
-
-function sorted_percolation(data, ord)
+function easier_ind_protect(data)
     ids = unique(data[:, :newid])
-
+    Neez = length(unique(data[:, :EEZ]))
     unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
-    sorted_EEZs = count_and_sort(unique_pairs, ord)
-    eezlist = sorted_EEZs[:, :EEZ]
     unprotected_ids  = unique(data[:, :newid])
     prot_times  = zeros(Int64, length(ids))
-    prot_number = zeros(Int64, length(eezlist))
+    prot_number = zeros(Int64, length(unique(data[:, "EEZ"])))
 
     # High Seas is protected from the beginning
     data = data[data[:, :EEZ] .!= -1, :] # protect High Seas
@@ -60,26 +47,34 @@ function sorted_percolation(data, ord)
         # add the new protected individuals to the list
         prot_number[1] = length(new_protected_ids)
         prot_times[newids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
-    end 
-    unprotected_ids = new_unprotected_ids
-    println(eezlist)
-    # iterate over the rest of EEZs, updating the eezlist at each step
-    for (tt, eez) in enumerate(eezlist[2:end])
-        real_tt = tt + 1
-        data = data[data[:, :EEZ] .!= eez, :]    # protect a new EEZ
+    end
+    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
+
+    for i in 2:Neez
+        unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
+        # 1- Find those individuals that are easier to protect
+        ids_eez_count = combine(groupby(unique_pairs, :newid), nrow)
+        easy_ids = ids_eez_count[ids_eez_count[:, :nrow] .== minimum(ids_eez_count[:, :nrow]), :newid]
+
+        # 2- Find the EEZs that are visited by those individuals, 
+        # identify the EEZ that is visited by the most individuals that are easier to protect
+        unique_pairs_easy = unique_pairs[unique_pairs[:, :newid] .∈ (easy_ids, ), :]
+        easy_ids_eezs = combine(groupby(unique_pairs_easy, :EEZ), nrow)
+        protect_eez = easy_ids_eezs[easy_ids_eezs[:, :nrow] .== maximum(easy_ids_eezs[:, :nrow]), :EEZ][1]
+
+        # 3- Protect that EEZ
+        data = data[data[:, :EEZ] .!= protect_eez, :] # protect the EEZ
         new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
         new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
         if length(new_protected_ids) > 0
             # add the new protected individuals to the list
-            prot_number[real_tt] = length(new_protected_ids)
-            prot_times[newids .∈ (new_protected_ids,)] .= real_tt # add the time at which they were protected
+            prot_number[i] = length(new_protected_ids)
+            prot_times[newids .∈ (new_protected_ids,)] .= i # add the time at which they were protected
         end
         unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
     end
     return prot_times, prot_number
 end
-
-
 
 function protected_species(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
     species = [dict_id_species[id] for id in newids]
@@ -103,41 +98,23 @@ function protected_species(prot_number, prot_times, dict_id_species, newids; thr
     return species, prot_species_number, prot_species_times
 end
 
-protected_times, protected_number = @time sorted_percolation(agg_data, "desc")
-species_id, prot_species_number, prot_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 
-# save protected times and number, and species times and number
-CSV.write("percolation/Strat1/protected_times_asc.csv.gz", DataFrame(protected_times=protected_times))
-CSV.write("percolation/Strat1/protected_number_asc.csv.gz", DataFrame(protected_number=protected_number))
-CSV.write("percolation/Strat1/protected_species_times_asc.csv.gz", DataFrame(prot_species_times=prot_species_times))
-CSV.write("percolation/Strat1/protected_species_number_asc.csv.gz", DataFrame(prot_species_number=prot_species_number))
-println("files saved at percolation/Strat1")
-
-p1 = plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected")
-title!("Descending order")
-plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
-plot!(p1, cumsum(prot_species_number)./N_species, label="species (50% of individuals)", color = "red")
-savefig(p1, "percolation/figures/Strat1_descending.png")
-savefig(p1, "percolation/figures/Strat1_descending.pdf")
-plot(p1)
-println("figures saved at percolation/figures")
 ##
 
-protected_times, protected_number = @time sorted_percolation(agg_data, "asc")
+protected_times, protected_number = easier_ind_protect(agg_data)
 species_id, prot_species_number, prot_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
+CSV.write("percolation/Strat2/protected_times.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/Strat2/protected_number.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/Strat2/protected_species_times.csv.gz", DataFrame(prot_species_times=prot_species_times))
+CSV.write("percolation/Strat2/protected_species_number.csv.gz", DataFrame(prot_species_number=prot_species_number))
+println("files saved at percolation/Strat2")
 
-# save protected times and number, and species times and number
-CSV.write("percolation/Strat1/protected_times_desc.csv.gz", DataFrame(protected_times=protected_times))
-CSV.write("percolation/Strat1/protected_number_desc.csv.gz", DataFrame(protected_number=protected_number))
-CSV.write("percolation/Strat1/protected_species_times_desc.csv.gz", DataFrame(prot_species_times=prot_species_times))
-CSV.write("percolation/Strat1/protected_species_number_desc.csv.gz", DataFrame(prot_species_number=prot_species_number))
-println("files saved at percolation/Strat1")
 
-p2 = plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected")
-title!("Ascending order")
-plot!(p2, cumsum(protected_number)./ N, label="individuals", color = "black")
-plot!(p2, cumsum(prot_species_number)./N_species, label="species (50% of individuals)", color = "red")
-savefig(p2, "percolation/figures/Strat1_ascending.png")
-savefig(p2, "percolation/figures/Strat1_ascending.pdf")
-plot(p2)
-println("figures saved at percolation/figures")
+
+p1 = plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected")
+title!("Easier individuals first")
+plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
+plot!(p1, cumsum(prot_species_number)./N_species, label="species (50% of individuals)", color = "red")
+plot!(p1)
+savefig(p1, "percolation/figures/Strat2.png")
+savefig(p1, "percolation/figures/Strat2.pdf")

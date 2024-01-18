@@ -42,38 +42,43 @@ function count_and_sort(df, ord)
 end
 
 
-function sorted_percolation(data, ord)
+function sorted_percolation(data, ord; start_protecting=[-1])
     ids = unique(data[:, :newid])
 
     unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
     sorted_EEZs = count_and_sort(unique_pairs, ord)
     eezlist = sorted_EEZs[:, :EEZ]
+    iterated_eezs = setdiff(eezlist, start_protecting)
+
     unprotected_ids  = unique(data[:, :newid])
     prot_times  = zeros(Int64, length(ids))
-    prot_number = zeros(Int64, length(eezlist))
+    prot_number = zeros(Int64, length(iterated_eezs)+1)
 
-    # High Seas is protected from the beginning
-    data = data[data[:, :EEZ] .!= -1, :] # protect High Seas
+
+    # Protect the first EEZs
+    data = data[data[:, :EEZ] .∈ (iterated_eezs, ), :] # protect the EEZ
     new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
     new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
     if length(new_protected_ids) > 0
         # add the new protected individuals to the list
         prot_number[1] = length(new_protected_ids)
-        prot_times[newids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
-    end 
-    unprotected_ids = new_unprotected_ids
-    println(eezlist)
+        prot_times[ids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
+    end
+    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
+    println(length(new_protected_ids))
     # iterate over the rest of EEZs, updating the eezlist at each step
-    for (tt, eez) in enumerate(eezlist[2:end])
+    for (tt, eez) in enumerate(iterated_eezs)
         real_tt = tt + 1
         data = data[data[:, :EEZ] .!= eez, :]    # protect a new EEZ
         new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
         new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
+        println(length(new_protected_ids))
         if length(new_protected_ids) > 0
             # add the new protected individuals to the list
             prot_number[real_tt] = length(new_protected_ids)
-            prot_times[newids .∈ (new_protected_ids,)] .= real_tt # add the time at which they were protected
+            prot_times[ids .∈ (new_protected_ids,)] .= real_tt # add the time at which they were protected
         end
+        println("EEZ: ", eez, " time: ", real_tt, " # protected: ", length(new_protected_ids))
         unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
     end
     return prot_times, prot_number

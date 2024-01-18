@@ -52,3 +52,7 @@ percolation/Strat1Eco/protected_species_times_asc.csv.gz
 percolation/Strat1Eco/protected_species_times_desc.csv.gz
 percolation/Strat1Eco/protected_times_asc.csv.gz
 percolation/Strat1Eco/protected_times_desc.csv.gz
+percolation/Strat2Eco/protected_number.csv.gz
+percolation/Strat2Eco/protected_species_number.csv.gz
+percolation/Strat2Eco/protected_species_times.csv.gz
+percolation/Strat2Eco/protected_times.csv.gz

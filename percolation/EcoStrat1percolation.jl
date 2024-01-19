@@ -93,17 +93,17 @@ function sorted_percolation(data, ord; start_protecting=[-1])
     println(length(new_protected_ids))
     # iterate over the rest of EEZs, updating the eezlist at each step
     for (tt, eez) in enumerate(iterated_eezs)
-        real_tt = tt + 1
+        tt_idx = tt + 1
         data = data[data[:, :EEZ] .!= eez, :]    # protect a new EEZ
         new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
         new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
         println(length(new_protected_ids))
         if length(new_protected_ids) > 0
             # add the new protected individuals to the list
-            prot_number[real_tt] = length(new_protected_ids)
-            prot_times[ids .∈ (new_protected_ids,)] .= real_tt # add the time at which they were protected
+            prot_number[tt_idx] = length(new_protected_ids)
+            prot_times[ids .∈ (new_protected_ids,)] .= tt # add the time at which they were protected
         end
-        println("EEZ: ", eez, " time: ", real_tt, " # protected: ", length(new_protected_ids))
+        println("EEZ: ", eez, " time: ", tt, " # protected: ", length(new_protected_ids))
         unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
     end
     return prot_times, prot_number
@@ -114,23 +114,24 @@ end
 function protected_species(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
     species = [dict_id_species[id] for id in newids]
     unique_species = unique(species)
-    threshold_species = [Int64(round(threshold * sum(species .== sp))) for sp in unique_species]
+    threshold_species = [Int64(floor(threshold * sum(species .== sp))) for sp in unique_species]
+
     prot_species_number = zeros(Int64, size(prot_number))
     prot_species_times  = zeros(Int64, length(unique_species))
     for (sp_idx, sp) in enumerate(unique_species) # for each species 
         sp_times = prot_times[species .== sp] 
         sp_threshold = threshold_species[sp_idx]
         n_prot_sp = 0
-        t_prot = 1
+        t_prot = 0
         n_prot_sp = sum(sp_times .<= t_prot)
         while (n_prot_sp < sp_threshold) || (n_prot_sp == 0)
             t_prot += 1
             n_prot_sp = sum(sp_times .<= t_prot)
         end
         prot_species_times[sp_idx] = t_prot
-        prot_species_number[t_prot] += 1
+        prot_species_number[t_prot+1] += 1
     end
-    return species, prot_species_number, prot_species_times
+    return prot_species_number, prot_species_times
 end
 
 
@@ -143,7 +144,7 @@ rich, poor = Rich_Poor_lists(eezs, iso3_eez, economic_data)
 """ ASCENDING """
 ##
 protected_times, protected_number = @time sorted_percolation(agg_data, "asc"; start_protecting=rich)
-species_id, prot_species_number, prot_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
+prot_species_number, prot_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 
 # save protected times and number, and species times and number
 CSV.write("percolation/Strat1Eco/protectedtimes_asc.csv.gz", DataFrame(protected_times=protected_times))
@@ -168,7 +169,7 @@ plot(p1)
 
  
 protected_times, protected_number = @time sorted_percolation(agg_data, "desc"; start_protecting=rich)
-species_id, prot_species_number, prot_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
+prot_species_number, prot_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 
 # save protected times and number, and species times and number
 CSV.write("percolation/Strat1Eco/protected_times_desc.csv.gz", DataFrame(protected_times=protected_times))

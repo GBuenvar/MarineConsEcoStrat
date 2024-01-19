@@ -69,7 +69,7 @@ function easier_ind_protect(data)
         if length(new_protected_ids) > 0
             # add the new protected individuals to the list
             prot_number[i] = length(new_protected_ids)
-            prot_times[newids .∈ (new_protected_ids,)] .= i # add the time at which they were protected
+            prot_times[newids .∈ (new_protected_ids,)] .= i-1 # add the time at which they were protected
         end
         unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
     end
@@ -79,24 +79,26 @@ end
 function protected_species(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
     species = [dict_id_species[id] for id in newids]
     unique_species = unique(species)
-    threshold_species = [Int64(round(threshold * sum(species .== sp))) for sp in unique_species]
+    threshold_species = [Int64(floor(threshold * sum(species .== sp))) for sp in unique_species]
+
     prot_species_number = zeros(Int64, size(prot_number))
     prot_species_times  = zeros(Int64, length(unique_species))
     for (sp_idx, sp) in enumerate(unique_species) # for each species 
         sp_times = prot_times[species .== sp] 
         sp_threshold = threshold_species[sp_idx]
         n_prot_sp = 0
-        t_prot = 1
+        t_prot = 0
         n_prot_sp = sum(sp_times .<= t_prot)
         while (n_prot_sp < sp_threshold) || (n_prot_sp == 0)
             t_prot += 1
             n_prot_sp = sum(sp_times .<= t_prot)
         end
         prot_species_times[sp_idx] = t_prot
-        prot_species_number[t_prot] += 1
+        prot_species_number[t_prot+1] += 1
     end
-    return species, prot_species_number, prot_species_times
+    return prot_species_number, prot_species_times
 end
+
 
 
 
@@ -104,7 +106,7 @@ end
 ##
 
 protected_times, protected_number = easier_ind_protect(agg_data)
-species_id, prot_species_number, prot_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
+prot_species_number, prot_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 CSV.write("percolation/Strat2/protected_times.csv.gz", DataFrame(protected_times=protected_times))
 CSV.write("percolation/Strat2/protected_number.csv.gz", DataFrame(protected_number=protected_number))
 CSV.write("percolation/Strat2/protected_species_times.csv.gz", DataFrame(prot_species_times=prot_species_times))

@@ -56,6 +56,7 @@ function plot_trajectories_median(prot_number, median_prot_number, n; xlabel = "
         plot!(p1, cumsum(prot_number[i, :]) ./ n)
     end
     plot!(p1, median_prot_number[1, :] ./ n, lw = 1.5, color=:black)
+    plot!(p1)
     if namesave != "none"
         savefig(p1, namesave*".png")
         savefig(p1, namesave*".pdf")

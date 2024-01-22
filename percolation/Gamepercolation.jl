@@ -1,4 +1,5 @@
 using CSV, DataFrames, Random, Statistics, Plots, XLSX
+include("percolation_functions.jl")
 ##
 
 # En este caso miramos cuales son los individuos que son más fáciles de proteger, es decir,
@@ -48,259 +49,164 @@ eezs = unique(agg_data[:, :EEZ])
 iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs]
 
 
+
 ##
-function Rich_Poor_lists(eezlist, iso3_eez_list, income_data)
-    Rich = Vector{Int64}(undef, 0)
-    for (eez, iso3) in zip(eezlist, iso3_eez_list)
-        if in(iso3, income_data[:, :Code])
-            income = income_data[income_data[:, :Code] .== iso3, "Income group"][1]
-            if (!ismissing(income)) && ((income == "High income") || (income == "Upper middle income"))
-                push!(Rich, eez)
-            end
-        end
-    end
-    # Add High Seas and Antarctica
-    push!(Rich, eez_to_int["-1"])
-    push!(Rich, eez_to_int["Antarctica"])
+# Write three functions to make the plots p1, pcost and p3
 
-    # every other EEZ is Poor
-    Poor = setdiff(eezs, Rich)
-    return Rich, Poor
+function plot_protected(prot_number, prot_species, n, n_species, title; xlabel = "EEZs protecting", ylabel = "Fraction protected", savename = "none")
+    p1 = plot(xlabel = xlabel, ylabel = ylabel)
+    plot!(p1, cumsum(prot_number)./ n, label="individuals", color = "black")
+    plot!(p1, cumsum(prot_species)./n_species, label="species (50% of individuals)", color = "red")
+    title!(p1, title)
+    if savename != "none"
+        savefig(p1, "percolation/figures/$(savename).pdf")
+        savefig(p1, "percolation/figures/$(savename).png")
+    end
+    plot!(p1)
+    return p1
 end
 
-
-
-function compute_id_weight(pairs; α=1)
-    ids = unique(pairs[:, :newid])
-    Neez_ids = zeros(Float64, length(ids))
-    for (i, id) in enumerate(ids)
-        Neez_ids[i] = length(unique(pairs[pairs[:, :newid] .== id, :EEZ]))
+function plot_protection_cost(prot_cost, title; xlabel = "EEZs protecting", ylabel = "Spents", savename = "none")
+    pcost = plot(xlabel = xlabel, ylabel = ylabel)
+    plot!(pcost, prot_cost, label="Per EEZ", color = "black")
+    plot!(pcost, cumsum(prot_cost), label="Cumulative", color = "blue")
+    title!(pcost, title)
+    if savename != "none"
+        savefig(pcost, "percolation/figures/$(savename).pdf")
+        savefig(pcost, "percolation/figures/$(savename).png")
     end
-    return Neez_ids.^(-α)
+    plot!(pcost)
+    return pcost
 end
 
-function protected_species(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
-    species = [dict_id_species[id] for id in newids]
-    unique_species = unique(species)
-    threshold_species = [Int64(floor(threshold * sum(species .== sp))) for sp in unique_species]
-
-    prot_species_number = zeros(Int64, size(prot_number))
-    prot_species_times  = zeros(Int64, length(unique_species))
-    for (sp_idx, sp) in enumerate(unique_species) # for each species 
-        sp_times = prot_times[species .== sp] 
-        sp_threshold = threshold_species[sp_idx]
-        n_prot_sp = 0
-        t_prot = 0
-        n_prot_sp = sum(sp_times .<= t_prot)
-        while (n_prot_sp < sp_threshold) || (n_prot_sp == 0)
-            t_prot += 1
-            n_prot_sp = sum(sp_times .<= t_prot)
-        end
-        prot_species_times[sp_idx] = t_prot
-        prot_species_number[t_prot] += 1
+function plot_protection_cost_per_individual(prot_cost, prot_number, prot_species, n, n_species, title; xlabel = "# EEZs protecting", ylabel = "Cost/individuals", savename = "none")
+    p3 = plot(xlabel = xlabel, ylabel = ylabel)
+    p3twinx = twinx(p3)
+    plot!(p3twinx, ylabel = "Cost/species")
+    plot!(p3, cumsum(prot_cost[2:end])./(cumsum(prot_number[2:end])), label="individuals", color = "black")
+    plot!(p3twinx, cumsum(prot_cost[2:end])./(cumsum(prot_species[2:end])), label=false, color = "red")
+    plot!(p3, [-1], [0], label="species", color = "red")
+    title!(p3, title)
+    # plot!(p3, margin = 5) 
+    if savename != "none"
+        savefig(p3, "percolation/figures/$(savename).pdf")
+        savefig(p3, "percolation/figures/$(savename).png")
     end
-    return prot_species_number, prot_species_times
+    plot!(p3)
+    return p3
 end
-
-
-function compute_eez_payoff(pairs, id_weights)
-    ids = unique(pairs[:, :newid])
-    eezs = unique(pairs[:, :EEZ])
-    eezs_payoffs = zeros(Float64, length(eezs))
-    for (ii, eez) in enumerate(eezs)
-        visiting_ids = unique(pairs[pairs[:, :EEZ] .== eez, :newid])
-        eez_po = sum(id_weights[ids .∈ (visiting_ids, )])
-        eezs_payoffs[ii] = eez_po
-    end
-    return eezs_payoffs
-end
-
-function run_game(data; start_protecting = [-1], α=1, order="higher")
-    ids = unique(data[:, :newid])
-    eezs = unique(data[:, :EEZ])
-    iterated_eezs = setdiff(eezs, start_protecting)
-    Neez = length(iterated_eezs)
-
-    # Initialize the variables
-    unprotected_ids  = unique(data[:, :newid])
-    prot_times  = zeros(Int64, length(ids))
-    prot_number = zeros(Int64, Neez+1)
-    prot_cost   = zeros(Float64, Neez+1)
-    prot_eezs   = copy(start_protecting)
-
-    # Protect the first EEZs
-    data = data[data[:, :EEZ] .∈ (iterated_eezs, ), :] # protect the EEZ
-    new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
-    new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
-    if length(new_protected_ids) > 0
-        # add the new protected individuals to the list
-        prot_number[1] = length(new_protected_ids)
-        prot_times[ids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
-    end
-    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
-
-    unprotected_eezs = copy(iterated_eezs)
-    for ii in 2:Neez+1
-        unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
-        unprotected_eezs = unique(unique_pairs[:, :EEZ])
-        # 1- compute the ids weights
-        id_weights = compute_id_weight(unique_pairs; α=α)
-        # 2- compute the payoff of each EEZ
-        eezs_payoffs = compute_eez_payoff(unique_pairs, id_weights)
-        # 3- Find the EEZ with the highest payoff
-        if order == "higher"
-            arg = argmax(eezs_payoffs)
-        elseif order == "lower"
-            arg = argmin(eezs_payoffs)
-        end
-        cost = eezs_payoffs[arg]
-        protect_eez = unprotected_eezs[arg]
-        # 4- Protect that EEZ
-        push!(prot_eezs, protect_eez)
-        prot_cost[ii] = cost
-        data = data[data[:, :EEZ] .!= protect_eez, :] # protect the EEZ
-        new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
-        new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
-        if length(new_protected_ids) > 0
-            # add the new protected individuals to the list
-            prot_number[ii] = length(new_protected_ids)
-            prot_times[ids .∈ (new_protected_ids,)] .= ii-1 # add the time at which they were protected
-        end
-        # println("EEZ: ", protect_eez, " time: ", ii, " # protected: ", length(new_protected_ids), " # unprotected: ", length(new_unprotected_ids), " cost: ", cost)
-        unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
-        # println(length(unique(data[:, :EEZ])))
-    end
-    return prot_times, prot_number, prot_cost, prot_eezs
-end
-
-
 
 ## 
 
-α = 1
-print("Higher payoff first (a=$α)")
 rich, poor = Rich_Poor_lists(eezs, iso3_eez, economic_data)
-protected_times1, protected_number, protected_cost, protected_eezs = run_game(agg_data, start_protecting = rich, α=α, order="higher")
-protected_species_number1, protected_species_times1 = protected_species(protected_number, protected_times1, id_to_species_int, newids)
-println("Total cost: ", sum(protected_cost))
-println("Initially $(protected_species_number1[1]) species are protected with $(protected_number[1]) individuals") 
 
 ##
-p1 = plot(xlabel = "EEZs protecting", ylabel = "Fraction protected")
-title!("Higher payoff first (a=$α)")
-plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
-plot!(p1, cumsum(protected_species_number)./N_species, label="species (50% of individuals)", color = "red")
-plot!(p1)
+
+α = 1
+print("Higher payoff first (a=$α)")
+protected_times, protected_number, protected_cost, protected_eezs = run_game(agg_data, start_protecting = rich, α=α, order="higher")
+protected_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
+println("Total cost: ", sum(protected_cost))
+println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals") 
+
+
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_a_$(α)")
+pcost = plot_protection_cost(protected_cost, "Higher payoff first (a=$α)", savename = "Higher_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_cost_a_$(α)")
+
+# show the plots
+plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
+
+
+
 ##
-pcost = plot(xlabel = "EEZs protecting", ylabel = "Spents")
-title!("Higher payoff first (a=$α)")
-plot!(pcost, protected_cost, label="Per EEZ", color = "black")
-plot!(pcost, cumsum(protected_cost), label="Cumulative", color = "blue")
-plot!(pcost)
-##
-p3 = plot(xlabel = "# EEZs protecting", ylabel = "Cost/individuals")
-p3twinx = twinx(p3)
-plot!(p3twinx, ylabel = "Cost/species")
-title!(p3, "Higher payoff first (a=$α)")
-plot!(p3, cumsum(protected_cost[2:end])./(cumsum(protected_number[2:end])), label="individuals", color = "black")
-plot!(p3twinx, cumsum(protected_cost[2:end])./(cumsum(protected_species_number[2:end])), label=false, color = "red")
-plot!(p3, [-1], [0], label="species", color = "red")
-plot!(p3)
+
+α = 0
+print("Higher payoff first (a=$α)")
+protected_times, protected_number, protected_cost, protected_eezs = run_game(agg_data, start_protecting = rich, α=α, order="higher")
+protected_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
+println("Total cost: ", sum(protected_cost))
+println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals")
+
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_a_$(α)")
+pcost = plot_protection_cost(protected_cost, "Higher payoff first (a=$α)", savename = "Higher_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_cost_a_$(α)")
+
+# show the plots
+plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
+
+
 ##
 
 # now do the same for α=-1
 
 α = -1
 print("Higher payoff first (a=$α)")
-protected_times2, protected_number, protected_cost, protected_eezs = run_game(agg_data, start_protecting = rich, α=α, order="higher")
-protected_species_number2, protected_species_times2 = protected_species(protected_number, protected_times2, id_to_species_int, newids)
+protected_times, protected_number, protected_cost, protected_eezs = run_game(agg_data, start_protecting = rich, α=α, order="higher")
+protected_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 println("Total cost: ", sum(protected_cost))
-println("Initially $(protected_species_number2[1]) species are protected with $(protected_number[1]) individuals") 
+println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals") 
 
 ##
-p1 = plot(xlabel = "EEZs protecting", ylabel = "Fraction protected")
-title!("Higher payoff first (a=$α)")
-plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
-plot!(p1, cumsum(protected_species_number)./N_species, label="species (50% of individuals)", color = "red")
-plot!(p1)
-##
-pcost = plot(xlabel = "EEZs protecting", ylabel = "Spents")
-title!("Higher payoff first (a=$α)")
-plot!(pcost, protected_cost, label="Per EEZ", color = "black")
-plot!(pcost, cumsum(protected_cost), label="Cumulative", color = "blue")
-plot!(pcost)
-##
-p3 = plot(xlabel = "# EEZs protecting", ylabel = "Cost/individuals")
-p3twinx = twinx(p3)
-plot!(p3twinx, ylabel = "Cost/species")
-title!(p3, "Hiigher payoff first (a=$α)")
-plot!(p3, cumsum(protected_cost[2:end])./(cumsum(protected_number[2:end])), label="individuals", color = "black")
-plot!(p3twinx, cumsum(protected_cost[2:end])./(cumsum(protected_species_number[2:end])), label=false, color = "red")
-plot!(p3, [-1], [0], label="species", color = "red")
-plot!(p3)
+
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_a_$(α)")
+pcost = plot_protection_cost(protected_cost, "Higher payoff first (a=$α)", savename = "Higher_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_cost_a_$(α)")
+
+# show the plots
+plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
+
+
+
 
 
 # repeat for order = "lower"
-
+##
 α = 1
 print("Lower payoff first (a=$α)")
-protected_times3, protected_number, protected_cost, protected_eezs = run_game(agg_data, start_protecting = rich, α=α, order="lower")
-protected_species_number3, protected_species_times3 = protected_species(protected_number, protected_times3, id_to_species_int, newids)
+protected_times, protected_number, protected_cost, protected_eezs = run_game(agg_data, start_protecting = rich, α=α, order="lower")
+protected_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 println("Total cost: ", sum(protected_cost))
-println("Initially $(protected_species_number3[1]) species are protected with $(protected_number[1]) individuals") 
+println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals") 
 
 ##
-p1 = plot(xlabel = "EEZs protecting", ylabel = "Fraction protected")
-title!("Lower payoff first (a=$α)")
-plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
-plot!(p1, cumsum(protected_species_number)./N_species, label="species (50% of individuals)", color = "red")
-plot!(p1)
-##
-pcost = plot(xlabel = "EEZs protecting", ylabel = "Spents")
-title!("Lower payoff first (a=$α)")
-plot!(pcost, protected_cost, label="Per EEZ", color = "black")
-plot!(pcost, cumsum(protected_cost), label="Cumulative", color = "blue")
-plot!(pcost)
-##
-p3 = plot(xlabel = "# EEZs protecting", ylabel = "Cost/individuals")
-p3twinx = twinx(p3)
-plot!(p3twinx, ylabel = "Cost/species")
-title!(p3, "Lower payoff first (a=$α)")
-plot!(p3, cumsum(protected_cost[2:end])./(cumsum(protected_number[2:end])), label="individuals", color = "black")
-plot!(p3twinx, cumsum(protected_cost[2:end])./(cumsum(protected_species_number[2:end])), label=false, color = "red")
-plot!(p3, [-1], [0], label="species", color = "red")
-plot!(p3)
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_a_$(α)")
+pcost = plot_protection_cost(protected_cost, "Lower payoff first (a=$α)", savename = "Lower_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_cost_a_$(α)")
 
+# show the plots
+plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
+
+
+##
+α =0
+print("Lower payoff first (a=$α)")
+protected_times, protected_number, protected_cost, protected_eezs = run_game(agg_data, start_protecting = rich, α=α, order="lower")
+protected_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
+println("Total cost: ", sum(protected_cost))
+println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals")
+
+##
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_a_$(α)")
+pcost = plot_protection_cost(protected_cost, "Lower payoff first (a=$α)", savename = "Lower_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_cost_a_$(α)")
+
+# show the plots
+plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
 
 ##
 α = -1
 print("Lower payoff first (a=$α)")
-protected_times4, protected_number, protected_cost, protected_eezs = run_game(agg_data, start_protecting = rich, α=α, order="lower")
-protected_species_number4, protected_species_times4 = protected_species(protected_number, protected_times4, id_to_species_int, newids)
+protected_times, protected_number, protected_cost, protected_eezs = run_game(agg_data, start_protecting = rich, α=α, order="lower")
+protected_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 println("Total cost: ", sum(protected_cost))
-println("Initially $(protected_species_number4[1]) species are protected with $(protected_number[1]) individuals") 
+println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals") 
 ##
-p1 = plot(xlabel = "EEZs protecting", ylabel = "Fraction protected")
-title!("Lower payoff first (a=$α)")
-plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
-plot!(p1, cumsum(protected_species_number)./N_species, label="species (50% of individuals)", color = "red")
-plot!(p1)
-##
-pcost = plot(xlabel = "EEZs protecting", ylabel = "Spents")
-title!("Lower payoff first (a=$α)")
-plot!(pcost, protected_cost, label="Per EEZ", color = "black")
-plot!(pcost, cumsum(protected_cost), label="Cumulative", color = "blue")
-plot!(pcost)
-# plot the cost of protecting one species at a time
-# El coste por individuo es cuánto
-##
-p3 = plot(xlabel = "# EEZs protecting", ylabel = "Cost/individuals")
-p3twinx = twinx(p3)
-plot!(p3twinx, ylabel = "Cost/species")
-title!(p3, "Lower payoff first (a=$α)")
-plot!(p3, cumsum(protected_cost[2:end])./(cumsum(protected_number[2:end])), label="individuals", color = "black")
-plot!(p3twinx, cumsum(protected_cost[2:end])./(cumsum(protected_species_number[2:end])), label=false, color = "red")
-plot!(p3, [-1], [0], label="species", color = "red")
-plot!(p3)
 
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_a_$(α)")
+pcost = plot_protection_cost(protected_cost, "Lower payoff first (a=$α)", savename = "Lower_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_cost_a_$(α)")
+
+# show the plots
+plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
 

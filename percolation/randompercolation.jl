@@ -1,5 +1,6 @@
 ##
 using CSV, DataFrames, Random, Statistics, Plots, ArgParse
+include("percolation_functions.jl")
 ##
 s = ArgParseSettings()
 @add_arg_table! s begin
@@ -45,94 +46,16 @@ unique_pairs = unique(agg_data[:, ["newid", "Species", "EEZ"]])
 id_to_species_int = Dict(zip(agg_data.newid, agg_data.Species))
 newids = unique(agg_data[:, :newid])
 N = length(newids)
+N_species = length(unique(agg_data[:, :Species]))
 ##
-function random_perc_1_rep(data; rng = MersenneTwister(1234), newids = unique(data[:, :newid]), eezlist = unique(data[:, :EEZ]))
 
-    unprotected_ids  = unique(data[:, :newid])
-    prot_times  = zeros(Int64, length(newids))
-    prot_number = zeros(Int64, length(eezlist))
-
-    # High Seas is protected from the beginning
-    data = data[data[:, :EEZ] .!= -1, :] # protect High Seas
-    new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
-    new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
-    if length(new_protected_ids) > 0
-        # add the new protected individuals to the list
-        prot_number[1] = length(new_protected_ids)
-        prot_times[newids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
-    end
-    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
-    random_eezlist = shuffle(rng, eezlist[eezlist .!= -1])
-    @views for (t, eez) in enumerate(random_eezlist)
-        data = data[data[:, :EEZ] .!= eez, :]    # protect a new EEZ
-        new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
-        new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
-        if length(new_protected_ids) > 0
-            # add the new protected individuals to the list
-            prot_number[t+1] = length(new_protected_ids)
-            prot_times[newids .∈ (new_protected_ids,)] .= t # add the time at which they were protected
-            end
-        unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
-        
-    end
-    return prot_times, prot_number
-end
-
-
-##
-# create a function that calls to the previous function n times, saves the results as Vector{Vector{Int64}} and returns the median of the number of protected individuals at each time
-function random_perc(data, n; seed = 1234)
-    rng = MersenneTwister(seed)
-    newids = unique(data[:, :newid])
-    eezlist = unique(data[:, :EEZ])
-    prot_times = zeros(Int64, (n, length(newids)))
-    prot_number = zeros(Int64, (n, length(eezlist)))
-    for i in 1:n
-        prot_times[i, :], prot_number[i, :] = random_perc_1_rep(data; rng = rng, newids = newids, eezlist = eezlist)
-    end   
-    return prot_times, prot_number
-end
-
-
-function median_protected(prot_number)
-    # compute the cumulative sum of each row
-    cum_prot = cumsum(prot_number, dims = 2)
-    # compute the median of the number of protected individuals at each time
-    median_prot = median(cum_prot, dims = 1)
-    return median_prot
-end
-
-
-function protected_species(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
-    species = [dict_id_species[id] for id in newids]
-    unique_species = unique(species)
-    threshold_species = [Int64(round(threshold * sum(species .== sp))) for sp in unique_species]
-    nn = size(prot_number)[1]
-    prot_species_number = zeros(Int64, size(prot_number))
-    prot_species_times  = zeros(Int64, (nn, length(unique_species)))
-    for ii in 1:nn # for each simulation
-        for (sp_idx, sp) in enumerate(unique_species) # for each species 
-            sp_times = prot_times[ii, species .== sp] 
-            sp_threshold = threshold_species[sp_idx]
-            n_prot_sp = 0
-            t_prot = 1
-            while (n_prot_sp < sp_threshold) || (n_prot_sp == 0)
-                n_prot_sp = sum(sp_times .<= t_prot)
-                t_prot += 1
-            end
-            prot_species_times[ii, sp_idx] = t_prot
-            prot_species_number[ii, t_prot] += 1
-        end
-    end
-    return species, prot_species_number, prot_species_times
-end
-
-function plot_trajectories_median(prot_number, median_prot_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "none")
+function plot_trajectories_median(prot_number, median_prot_number, n; xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "none")
     p1 = plot(xlabel = xlabel, ylabel = ylabel, legend = legend, dpi = dpi)
-    for i in 1:n
-        plot!(p1, cumsum(prot_number[i, :]) ./ N)
+    nn = size(prot_number)[1]
+    for i in 1:nn
+        plot!(p1, cumsum(prot_number[i, :]) ./ n)
     end
-    plot!(p1, median_prot_number[1, :] ./ N, lw = 1.5, color=:black)
+    plot!(p1, median_prot_number[1, :] ./ n, lw = 1.5, color=:black)
     if namesave != "none"
         savefig(p1, namesave*".png")
         savefig(p1, namesave*".pdf")
@@ -146,20 +69,20 @@ median_protected_number = @time median_protected(protected_number)
 
 
 ##
-p_inds = plot_trajectories_median(protected_number, median_protected_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_ids")
+p_inds = plot_trajectories_median(protected_number, median_protected_number, N; xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_ids")
 # save outputs in compressed files
 CSV.write("percolation/random/protected_times.csv.gz", DataFrame(protected_times, :auto))
 CSV.write("percolation/random/protected_number.csv.gz", DataFrame(protected_number, :auto))
 CSV.write("percolation/random/median_protected_number.csv.gz", DataFrame(median_protected_number, :auto))
 
 ##
-species_id, protected_species_number, protected_species_times = @time protected_species(protected_number, protected_times, id_to_species_int, newids)
+species_id, protected_species_number, protected_species_times = @time protected_species_random(protected_number, protected_times, id_to_species_int, newids)
 median_protected_species_number = @time median_protected(protected_species_number)
 
 
 
 ##
-p_species = plot_trajectories_median(protected_species_number, median_protected_species_number; xlabel = "# EEZs protected", ylabel = "Fraction of protected species", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_species")
+p_species = plot_trajectories_median(protected_species_number, median_protected_species_number, N_species; xlabel = "# EEZs protected", ylabel = "Fraction of protected species", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_species")
 # save outputs in compressed files
 CSV.write("percolation/random/protected_species_number.csv.gz", DataFrame(protected_species_number, :auto))
 CSV.write("percolation/random/protected_species_times.csv.gz", DataFrame(protected_species_times, :auto))

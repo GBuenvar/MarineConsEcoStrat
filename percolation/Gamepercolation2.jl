@@ -55,11 +55,11 @@ iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs]
 ##
 # Write three functions to make the plots p1, pcost and p3
 
-function plot_protected(prot_number, prot_species, n, n_species, title; xlabel = "EEZs protecting", ylabel = "Fraction protected", savename = "none")
+function plot_protected(prot_number, prot_species, n, n_species, title; xlabel = "EEZs cooperating", ylabel = "Fraction protected", savename = "none", title_location = :center)
     p1 = plot(xlabel = xlabel, ylabel = ylabel)
     plot!(p1, cumsum(prot_number)./ n, label="individuals", color = "black")
-    plot!(p1, cumsum(prot_species)./n_species, label="species (50% of individuals)", color = "red")
-    title!(p1, title)
+    plot!(p1, cumsum(prot_species)./n_species, label="species (50%)", color = "red")
+    title!(p1, title, title_location = title_location)
     if savename != "none"
         savefig(p1, "percolation/figures/$(savename).pdf")
         savefig(p1, "percolation/figures/$(savename).png")
@@ -68,11 +68,11 @@ function plot_protected(prot_number, prot_species, n, n_species, title; xlabel =
     return p1
 end
 
-function plot_protection_cost(prot_cost, title; xlabel = "EEZs protecting", ylabel = "Spents", savename = "none")
+function plot_protection_cost(prot_cost, title; xlabel = "EEZs cooperating", ylabel = "Spents", savename = "none", title_location = :center)
     pcost = plot(xlabel = xlabel, ylabel = ylabel)
     plot!(pcost, prot_cost, label="Per EEZ", color = "black")
     plot!(pcost, cumsum(prot_cost), label="Cumulative", color = "blue")
-    title!(pcost, title)
+    title!(pcost, title, title_location = title_location)
     if savename != "none"
         savefig(pcost, "percolation/figures/$(savename).pdf")
         savefig(pcost, "percolation/figures/$(savename).png")
@@ -81,14 +81,14 @@ function plot_protection_cost(prot_cost, title; xlabel = "EEZs protecting", ylab
     return pcost
 end
 
-function plot_protection_cost_per_individual(prot_cost, prot_number, prot_species, n, n_species, title; xlabel = "# EEZs protecting", ylabel = "Cost/individuals", savename = "none")
+function plot_protection_cost_per_individual(prot_cost, prot_number, prot_species, title; xlabel = "EEZs cooperating", ylabel = "Cost/individuals", savename = "none", title_location = :center)
     p3 = plot(xlabel = xlabel, ylabel = ylabel)
     p3twinx = twinx(p3)
     plot!(p3twinx, ylabel = "Cost/species")
     plot!(p3, cumsum(prot_cost[2:end])./(cumsum(prot_number[2:end])), label="individuals", color = "black")
     plot!(p3twinx, cumsum(prot_cost[2:end])./(cumsum(prot_species[2:end])), label=false, color = "red")
     plot!(p3, [-1], [0], label="species", color = "red")
-    title!(p3, title)
+    title!(p3, title, title_location = title_location)
     # plot!(p3, margin = 5) 
     if savename != "none"
         savefig(p3, "percolation/figures/$(savename).pdf")
@@ -98,6 +98,12 @@ function plot_protection_cost_per_individual(prot_cost, prot_number, prot_specie
     return p3
 end
 
+
+function plot_number_ids(data, prot_eez; xlabel = "EEZs cooperating", ylabel = "Number of individuals", label = "Individuals", color = "black", title="", title_location = ":center")
+    ids_at_eez = [sum(data[:, :EEZ] .== eez) for eez in prot_eez]
+    p4 = plot(ids_at_eez, xlabel = xlabel, ylabel = ylabel, label = label, color = color, title=title, title_location = title_location)
+    return p4
+end
 ###
 
 function Rich_Poor_lists(eezlist, iso3_eez_list, income_data)
@@ -172,7 +178,7 @@ function compute_final_payoff(pairs)
     return final_po
 end
 
-function run_game_incentives(data; start_protecting = [-1], α=1)
+function run_game_incentives(data; start_protecting = [-1], α=1, operation = /)
     ids = unique(data[:, :newid])
     eezs = unique(data[:, :EEZ])
     iterated_eezs = setdiff(eezs, start_protecting)
@@ -210,7 +216,7 @@ function run_game_incentives(data; start_protecting = [-1], α=1)
         # 2- compute the payoff of each EEZ
         eezs_payoffs = compute_eez_payoff(unique_pairs, id_weights)
         # 3- Compute the hurry of each EEZ to cooperate
-        eezs_hurry = eezs_payoffs ./ last_cooperating_payoffs
+        eezs_hurry = operation.(eezs_payoffs, last_cooperating_payoffs)
         # 4- find the EEZ with the highest hurry, and protect it. If there is a tie, protect the one with the highest payoff
 
         max_hurry = maximum(eezs_hurry)
@@ -244,6 +250,19 @@ function run_game_incentives(data; start_protecting = [-1], α=1)
     return prot_times, prot_number, prot_cost, prot_eezs
 end
 
+function compute_neighbors(data)
+    pairs = data[:, ["newid", "EEZ"]]
+    unique_pairs = unique(pairs)
+    eez_neighbors = Dict()
+    for (i, eez) in enumerate(unique_pairs[:, :EEZ])
+        eez_ids = unique_pairs[unique_pairs[:, :EEZ] .== eez, :newid]
+        neis = unique_pairs[unique_pairs[:, :newid] .∈ (eez_ids, ), :EEZ]
+        eez_neis = setdiff(unique(neis), [eez])
+        eez_neighbors[eez] = eez_neis
+    end
+    return eez_neighbors
+end
+
 
 ###
 
@@ -253,59 +272,77 @@ end
 rich, poor = Rich_Poor_lists(eezs, iso3_eez, economic_data)
 α = 1
 print("Incentives decrease with neighbors (a=$α)")
-protected_times, protected_number, protected_cost, protected_eezs = run_game_incentives(agg_data, start_protecting = rich, α=α)
+@time protected_times, protected_number, protected_cost, protected_eezs = run_game_incentives(agg_data, start_protecting = rich, α=α)
 protected_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 println("Total cost: ", sum(protected_cost))
-println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals") 
+println("Initially $(protected_species_number[1]) species ($(round(100 * protected_species_number[1]/sum(protected_species_number), digits=1))%) and $(protected_number[1]) individuals ($(round(100 * protected_number[1]/sum(protected_number), digits=1))%) are protected") 
 
-p1 = plot_protected(protected_number, protected_species_number, N, N_species, "a=$α", savename = "Game_protected_a_$(α)")
-pcost = plot_protection_cost(protected_cost, "a=$α", savename = "Game_cost_a_$(α)")
-p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "a=$α", savename = "Game_protected_cost_a_$(α)")
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "A", title_location = (-0.1,1.1))
+pcost = plot_protection_cost(protected_cost, "B", title_location = (-0.1,1.1))
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, "C", title_location = (-0.1,1.1))
+p4 = plot_number_ids(agg_data, [eez for eez in protected_eezs if !(eez ∈ rich)], title="D", title_location = (-0.1,1.1))
 
-
-
-ids_at_eez = [sum(agg_data[:, :EEZ] .== eez) for eez in protected_eezs if !(eez ∈ rich)]
-p4 = plot(ids_at_eez, xlabel = "EEZs protecting", ylabel = "Number of individuals", label = "Individuals", color = "black")
-
-plot(p1, pcost, p3, p4, layout = (2, 2), size = (600,600))
-
-
+p_title = plot(title = "Incentives decrease with neighbors (a=$α)", grid = false, showaxis = false, bottom_margin = -50Plots.px)
+ptot = plot(p_title, p1, pcost, p3, p4, layout = @layout([A{0.01h}; [B C]; [D E]]), size = (600, 600))
+savefig(ptot, "percolation/figures/Game_Incentives_decrease_with_neighbors.pdf")
+plot(ptot)
 
 ##
 
 α = 0
 print("Same incentive always (a=$α)")
-protected_times, protected_number, protected_cost, protected_eezs = run_game_incentives(agg_data, start_protecting = rich, α=α)
+@time protected_times, protected_number, protected_cost, protected_eezs = run_game_incentives(agg_data, start_protecting = rich, α=α)
 protected_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 println("Total cost: ", sum(protected_cost))
-println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals") 
+println("Initially $(protected_species_number[1]) species ($(round(100 * protected_species_number[1]/sum(protected_species_number), digits=1))%) and $(protected_number[1]) individuals ($(round(100 * protected_number[1]/sum(protected_number), digits=1))%) are protected") 
 
-p1 = plot_protected(protected_number, protected_species_number, N, N_species, "a=$α", savename = "Game_protected_a_$(α)")
-pcost = plot_protection_cost(protected_cost, "a=$α", savename = "Game_cost_a_$(α)")
-p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "a=$α", savename = "Game_protected_cost_a_$(α)")
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "A", title_location = (-0.1,1.1))
+pcost = plot_protection_cost(protected_cost, "B", title_location = (-0.1,1.1))
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, "C", title_location = (-0.1,1.1))
 
 ids_at_eez = [sum(agg_data[:, :EEZ] .== eez) for eez in protected_eezs if !(eez ∈ rich)]
-p4 = plot(ids_at_eez, xlabel = "EEZs protecting", ylabel = "Number of individuals", label = "Individuals", color = "black")
-
-plot(p1, pcost, p3, p4, layout = (2, 2), size = (600,600))
+p4 = plot(ids_at_eez, xlabel = "EEZs protecting", ylabel = "Size of the EEZ", label = "#Individuals", color = "black", title="D", title_location = (-0.1,1.1))
 
 
+# Show the plot
+p_title = plot(title = "Same incentive always (a=$α)", grid = false, showaxis = false, bottom_margin = -50Plots.px)
+ptot = plot(p_title, p1, pcost, p3, p4, layout = @layout([A{0.01h}; [B C]; [D E]]), size = (600, 600))
+savefig(ptot, "percolation/figures/Game_Same_incentive_always.pdf")
+plot(ptot)
 ##
 
 α = -1
 print("Incentives increase with neighbors (a=$α)")
-protected_times, protected_number, protected_cost, protected_eezs = run_game_incentives(agg_data, start_protecting = rich, α=α)
+@time protected_times, protected_number, protected_cost, protected_eezs = run_game_incentives(agg_data, start_protecting = rich, α=α)
 protected_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 println("Total cost: ", sum(protected_cost))
-println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals") 
+println("Initially $(protected_species_number[1]) species ($(round(100 * protected_species_number[1]/sum(protected_species_number), digits=1))%) and $(protected_number[1]) individuals ($(round(100 * protected_number[1]/sum(protected_number), digits=1))%) are protected") 
 
-p1 = plot_protected(protected_number, protected_species_number, N, N_species, "a=$α", savename = "Game_protected_a_$(α)")
-pcost = plot_protection_cost(protected_cost, "a=$α", savename = "Game_cost_a_$(α)")
-p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "a=$α", savename = "Game_protected_cost_a_$(α)")
+
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "A", title_location = (-0.1,1.1))
+pcost = plot_protection_cost(protected_cost, "B", title_location = (-0.1,1.1))
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, "C", title_location = (-0.1,1.1))
 
 ids_at_eez = [sum(agg_data[:, :EEZ] .== eez) for eez in protected_eezs if !(eez ∈ rich)]
-p4 = plot(ids_at_eez, xlabel = "EEZs protecting", ylabel = "Number of individuals", label = "Individuals", color = "black")
-
-plot(p1, pcost, p3, p4, layout = (2, 2), size = (600,600))
+p4 = plot(ids_at_eez, xlabel = "EEZs protecting", ylabel = "Number of individuals", label = "Individuals", color = "black", title="D", title_location = (-0.1,1.1))
 
 
+p_title = plot(title = "Incentives increase with neighbors (a=$α)", grid = false, showaxis = false, bottom_margin = -50Plots.px)
+ptot = plot(p_title, p1, pcost, p3, p4, layout = @layout([A{0.01h}; [B C]; [D E]]), size = (600, 600))
+savefig(ptot, "percolation/figures/Game_Incentives_increase_with_neighbors.pdf")
+plot(ptot)
+
+##
+"""
+Incentives decrease with neighbors (a=1)  1.211168 seconds (1.62 M allocations: 2.421 GiB, 17.93% gc time)
+Total cost: 3779.413636363636
+Initially 93 species are protected with 9594 individuals
+
+Same incentive always (a=0)  0.444331 seconds (697.43 k allocations: 680.187 MiB, 21.31% gc time)
+Total cost: 5043.0
+Initially 93 species are protected with 9594 individuals
+
+Incentives increase with neighbors (a=-1)  3.629252 seconds (3.98 M allocations: 7.056 GiB, 18.90% gc time)
+Total cost: 9533.0
+Initially 93 species are protected with 9594 individuals
+"""

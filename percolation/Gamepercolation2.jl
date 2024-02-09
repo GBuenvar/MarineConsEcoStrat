@@ -268,7 +268,7 @@ end
 ###
 ##
 
-operation = /
+operation = -
 
 ##
 

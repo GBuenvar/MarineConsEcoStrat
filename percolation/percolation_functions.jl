@@ -6,7 +6,7 @@ function Rich_Poor_lists(eezlist, iso3_eez_list, income_data)
     for (eez, iso3) in zip(eezlist, iso3_eez_list)
         if in(iso3, income_data[:, :Code])
             income = income_data[income_data[:, :Code] .== iso3, "Income group"][1]
-            if (!ismissing(income)) && ((income == "High income") || (income == "Upper middle income"))
+            if (!ismissing(income)) && (income == "High income")
                 push!(Rich, eez)
             end
         end

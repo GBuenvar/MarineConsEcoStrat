@@ -57,7 +57,7 @@ CSV.write("percolation/Strat1Eco/protected_species_times_asc.csv.gz", DataFrame(
 CSV.write("percolation/Strat1Eco/protected_species_number_asc.csv.gz", DataFrame(prot_species_number=prot_species_number))
 println("files saved at percolation/Strat1Eco")
 
-p1 = plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected")
+p1 = plot(xlabel = "EEZs cooperating", ylabel = "Fraction of protected")
 title!("Ascending order")
 plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
 plot!(p1, cumsum(prot_species_number)./N_species, label="species (50% of individuals)", color = "red")
@@ -82,7 +82,7 @@ CSV.write("percolation/Strat1Eco/protected_species_times_desc.csv.gz", DataFrame
 CSV.write("percolation/Strat1Eco/protected_species_number_desc.csv.gz", DataFrame(prot_species_number=prot_species_number))
 println("files saved at percolation/Strat1Eco")
 
-p2 = plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected")
+p2 = plot(xlabel = "EEZs cooperating", ylabel = "Fraction of protected")
 title!("Descending order")
 plot!(p2, cumsum(protected_number)./ N, label="individuals", color = "black")
 plot!(p2, cumsum(prot_species_number)./N_species, label="species (50% of individuals)", color = "red")

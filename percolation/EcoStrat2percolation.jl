@@ -63,7 +63,7 @@ println("files saved at percolation/Strat2Eco")
 
 
 
-p1 = plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected")
+p1 = plot(xlabel = "EEZs cooperating", ylabel = "Fraction of protected")
 title!("Easier individuals first")
 plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
 plot!(p1, cumsum(prot_species_number)./N_species, label="species (50% of individuals)", color = "red")

@@ -3,11 +3,11 @@ using CSV, DataFrames, Plots, LaTeXStrings
 
 # Read in the data
 
-trajectories = CSV.read("../data/full_data_inds.csv.gz", DataFrame)
+trajectories = CSV.read("data/full_data_inds.csv.gz", DataFrame)
 # Read the codes dictionaries of the species and the eezs
-eez_codes = CSV.read("../data/eez_to_int.csv", DataFrame)
+eez_codes = CSV.read("data/eez_to_int.csv", DataFrame)
 int_to_eez = Dict(zip(eez_codes.Int, eez_codes.EEZ))
-species_codes = CSV.read("../data/species_to_int.csv", DataFrame)
+species_codes = CSV.read("data/species_to_int.csv", DataFrame)
 int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
 
 

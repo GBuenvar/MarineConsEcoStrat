@@ -1,5 +1,5 @@
 using CSV, DataFrames, Random, Statistics, Plots, XLSX
-# include("percolation_functions.jl")
+include("percolation_functions.jl")
 ##
 
 # En este caso miramos cuales son los individuos que son más fáciles de proteger, es decir,
@@ -28,10 +28,6 @@ eez_to_iso3_data = CSV.read("data/eez_to_iso3.csv", DataFrame)
 eez_to_iso3 = Dict(zip(eez_to_iso3_data.Country, eez_to_iso3_data.ISO_3digit))
 # add High Seas
 eez_to_iso3["-1"] = "-1"
-
-α = 1
-
-
 
 mkpath("percolation/Game")
 
@@ -106,169 +102,9 @@ function plot_number_ids(data, prot_eez; xlabel = "EEZs cooperating", ylabel = "
 end
 ###
 
-function Rich_Poor_lists(eezlist, iso3_eez_list, income_data)
-    Rich = Vector{Int64}(undef, 0)
-    for (eez, iso3) in zip(eezlist, iso3_eez_list)
-        if in(iso3, income_data[:, :Code])
-            income = income_data[income_data[:, :Code] .== iso3, "Income group"][1]
-            if (!ismissing(income)) && ((income == "High income") || (income == "Upper middle income"))
-                push!(Rich, eez)
-            end
-        end
-    end
-    # Add High Seas and Antarctica
-    push!(Rich, eez_to_int["-1"])
-    push!(Rich, eez_to_int["Antarctica"])
-    # every other EEZ is Poor
-    Poor = setdiff(eezs, Rich)
-    return Rich, Poor
-end
-
-function protected_species(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
-    species = [dict_id_species[id] for id in newids]
-    unique_species = unique(species)
-    threshold_species = [Int64(floor(threshold * sum(species .== sp))) for sp in unique_species]
-
-    prot_species_number = zeros(Int64, size(prot_number))
-    prot_species_times  = zeros(Int64, length(unique_species))
-    for (sp_idx, sp) in enumerate(unique_species) # for each species 
-        sp_times = prot_times[species .== sp] 
-        sp_threshold = threshold_species[sp_idx]
-        n_prot_sp = 0
-        t_prot = 0
-        n_prot_sp = sum(sp_times .<= t_prot)
-        while (n_prot_sp < sp_threshold) || (n_prot_sp == 0)
-            t_prot += 1
-            n_prot_sp = sum(sp_times .<= t_prot)
-        end
-        prot_species_times[sp_idx] = t_prot
-        prot_species_number[t_prot+1] += 1
-    end
-    return prot_species_number, prot_species_times
-end
-
-
-#### Game functions
-
-function compute_id_weight(pairs; α=1)
-    ids = unique(pairs[:, :newid])
-    Neez_ids = zeros(Float64, length(ids))
-    for (i, id) in enumerate(ids)
-        Neez_ids[i] = length(unique(pairs[pairs[:, :newid] .== id, :EEZ]))
-    end
-    return Neez_ids.^(-α)
-end
-
-
-function compute_eez_payoff(pairs, id_weights)
-    ids = unique(pairs[:, :newid])
-    eezs = unique(pairs[:, :EEZ])
-    eezs_payoffs = zeros(Float64, length(eezs))
-    for (ii, eez) in enumerate(eezs)
-        visiting_ids = unique(pairs[pairs[:, :EEZ] .== eez, :newid])
-        eez_po = sum(id_weights[ids .∈ (visiting_ids, )])
-        eezs_payoffs[ii] = eez_po
-    end
-    return eezs_payoffs
-end
-
-function compute_final_payoff(pairs)
-    eezs = unique(pairs[:, :EEZ])
-    final_po = [sum(pairs[:, :EEZ] .== eez) for eez in eezs]
-    return final_po
-end
-
-function run_game_incentives(data; start_protecting = [-1], α=1, operation = /)
-    ids = unique(data[:, :newid])
-    eezs = unique(data[:, :EEZ])
-    iterated_eezs = setdiff(eezs, start_protecting)
-    Neez = length(iterated_eezs)
-
-    # Initialize the variables
-    unprotected_ids  = unique(data[:, :newid])
-    prot_times  = zeros(Int64, length(ids))
-    prot_number = zeros(Int64, Neez+1)
-    prot_cost   = zeros(Float64, Neez+1)
-    prot_eezs   = copy(start_protecting)
-
-    # Protect the first EEZs
-    data = data[data[:, :EEZ] .∈ (iterated_eezs, ), :] # protect the EEZ
-    new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
-    new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
-    if length(new_protected_ids) > 0
-        # add the new protected individuals to the list
-        prot_number[1] = length(new_protected_ids)
-        prot_times[ids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
-    end
-    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
-
-    unprotected_eezs = copy(iterated_eezs)
-
-    # Compute the potential cost of each EEZ being the last to be protected
-    unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
-    last_cooperating_payoffs = compute_final_payoff(unique_pairs)
-    @assert sum(last_cooperating_payoffs) == size(unique_pairs)[1] "The sum of the last cooperating payoffs is not equal to the number of unprotected individuals"
-    for ii in 2:Neez+1
-        unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
-        unprotected_eezs = unique(unique_pairs[:, :EEZ])
-        # 1- compute the ids weights
-        id_weights = compute_id_weight(unique_pairs; α=α)
-        # 2- compute the payoff of each EEZ
-        eezs_payoffs = compute_eez_payoff(unique_pairs, id_weights)
-        # 3- Compute the hurry of each EEZ to cooperate
-        eezs_hurry = operation.(eezs_payoffs, last_cooperating_payoffs)
-        # 4- find the EEZ with the highest hurry, and protect it. If there is a tie, protect the one with the highest payoff
-
-        max_hurry = maximum(eezs_hurry)
-        arg = findall(eezs_hurry .== max_hurry)
-        if length(arg) > 1
-                arg = arg[argmax(eezs_payoffs[arg])]
-        end
-        arg = arg[1]
-
-        cost = eezs_payoffs[arg]
-        protect_eez = unprotected_eezs[arg]
-
-        # 5- update the last cooperating payoffs removing the protected EEZ
-        deleteat!(last_cooperating_payoffs, arg)
-
-        # 4- Protect that EEZ
-        push!(prot_eezs, protect_eez)
-        prot_cost[ii] = cost
-        data = data[data[:, :EEZ] .!= protect_eez, :] # protect the EEZ
-        new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
-        new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
-        if length(new_protected_ids) > 0
-            # add the new protected individuals to the list
-            prot_number[ii] = length(new_protected_ids)
-            prot_times[ids .∈ (new_protected_ids,)] .= ii-1 # add the time at which they were protected
-        end
-        # println("EEZ: ", protect_eez, " time: ", ii, " # protected: ", length(new_protected_ids), " # unprotected: ", length(new_unprotected_ids), " cost: ", cost)
-        unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
-        # println(length(unique(data[:, :EEZ])))
-    end
-    return prot_times, prot_number, prot_cost, prot_eezs
-end
-
-function compute_neighbors(data)
-    pairs = data[:, ["newid", "EEZ"]]
-    unique_pairs = unique(pairs)
-    eez_neighbors = Dict()
-    for (i, eez) in enumerate(unique(unique_pairs[:, :EEZ]))
-        visit_eez = unique_pairs[unique_pairs[:, :EEZ] .== eez, :newid]
-        neis = unique_pairs[unique_pairs[:, :newid] .∈ (visit_eez, ), :EEZ]
-        eez_neis = setdiff(unique(neis), [eez])
-        eez_neighbors[eez] = eez_neis
-    end
-    return eez_neighbors
-end
-
-
-
-###
 ##
 
-operation = -
+operation = /
 
 ##
 
@@ -279,7 +115,7 @@ print("Incentives decrease with neighbors (a=$α)")
 @time protected_times, protected_number, protected_cost, protected_eezs = run_game_incentives(agg_data, start_protecting = rich, α=α, operation = operation)
 protected_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 println("Total cost: ", sum(protected_cost))
-println("Initially $(protected_species_number[1]) species ($(round(100 * protected_species_number[1]/sum(protected_species_number), digits=1))%) and $(protected_number[1]) individuals ($(round(100 * protected_number[1]/sum(protected_number), digits=1))%) are protected") 
+println("Initially $(length(rich)-2) of $(length(rich)+length(poor)-2) countries collaborate, $(protected_species_number[1]) species ($(round(100 * protected_species_number[1]/sum(protected_species_number), digits=1))%) and $(protected_number[1]) individuals ($(round(100 * protected_number[1]/sum(protected_number), digits=1))%) are protected") 
 
 p1 = plot_protected(protected_number, protected_species_number, N, N_species, "A", title_location = (-0.1,1.1))
 pcost = plot_protection_cost(protected_cost, "B", title_location = (-0.1,1.1))
@@ -345,16 +181,32 @@ savefig(ptot, "percolation/figures/Game_Incentives_increase_with_neighbors.png")
 plot(ptot)
 
 ##
+""" With substraction operation:
+Incentives decrease with neighbors (a=1)  8.332424 seconds (8.84 M allocations: 25.834 GiB, 11.46% gc time)
+Total cost: 5467.335109335109
+Initially 55 of 177 countries collaborate, 72 species (64.9%) and 8379 individuals (66.4%) are protected
+
+Same incentive always (a=0)  1.133673 seconds (1.72 M allocations: 2.159 GiB, 14.06% gc time, 17.14% compilation time)
+Total cost: 7856.0
+Initially 72 species (64.9%) and 8379 individuals (66.4%) are protected
+
+Incentives increase with neighbors (a=-1)  1.556473 seconds (2.88 M allocations: 4.219 GiB, 14.92% gc time)
+Total cost: 17578.0
+Initially 72 species (64.9%) and 8379 individuals (66.4%) are protected
+
 """
-Incentives decrease with neighbors (a=1)  1.211168 seconds (1.62 M allocations: 2.421 GiB, 17.93% gc time)
-Total cost: 3779.413636363636
-Initially 93 species are protected with 9594 individuals
 
-Same incentive always (a=0)  0.444331 seconds (697.43 k allocations: 680.187 MiB, 21.31% gc time)
-Total cost: 5043.0
-Initially 93 species are protected with 9594 individuals
 
-Incentives increase with neighbors (a=-1)  3.629252 seconds (3.98 M allocations: 7.056 GiB, 18.90% gc time)
-Total cost: 9533.0
-Initially 93 species are protected with 9594 individuals
+""" With division operation:
+Incentives decrease with neighbors (a=1)  8.332424 seconds (8.84 M allocations: 25.834 GiB, 11.46% gc time)
+Total cost: 5467.335109335109
+Initially 55 of 177 countries collaborate, 72 species (64.9%) and 8379 individuals (66.4%) are protected
+
+Same incentive always (a=0)  1.133673 seconds (1.72 M allocations: 2.159 GiB, 14.06% gc time, 17.14% compilation time)
+Total cost: 7856.0
+Initially 72 species (64.9%) and 8379 individuals (66.4%) are protected
+
+Incentives increase with neighbors (a=-1)  1.556473 seconds (2.88 M allocations: 4.219 GiB, 14.92% gc time)
+Total cost: 17578.0
+Initially 72 species (64.9%) and 8379 individuals (66.4%) are protected
 """

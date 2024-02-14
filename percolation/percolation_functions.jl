@@ -42,6 +42,18 @@ function protected_species(prot_number, prot_times, dict_id_species, newids; thr
     return prot_species_number, prot_species_times
 end
 
+function compute_neighbors(data)
+    pairs = data[:, ["newid", "EEZ"]]
+    unique_pairs = unique(pairs)
+    eez_neighbors = Dict()
+    for (i, eez) in enumerate(unique(unique_pairs[:, :EEZ]))
+        visit_eez = unique_pairs[unique_pairs[:, :EEZ] .== eez, :newid]
+        neis = unique_pairs[unique_pairs[:, :newid] .∈ (visit_eez, ), :EEZ]
+        eez_neis = setdiff(unique(neis), [eez])
+        eez_neighbors[eez] = eez_neis
+    end
+    return eez_neighbors
+end
 
 
 #### Stategy 1
@@ -168,6 +180,13 @@ function compute_id_weight(pairs; α=1)
     return Neez_ids.^(-α)
 end
 
+function compute_final_payoff(pairs)
+    eezs = unique(pairs[:, :EEZ])
+    final_po = [sum(pairs[:, :EEZ] .== eez) for eez in eezs]
+    return final_po
+end
+
+
 
 function compute_eez_payoff(pairs, id_weights)
     ids = unique(pairs[:, :newid])
@@ -221,6 +240,80 @@ function run_game(data; start_protecting = [-1], α=1, order="higher")
         end
         cost = eezs_payoffs[arg]
         protect_eez = unprotected_eezs[arg]
+        # 4- Protect that EEZ
+        push!(prot_eezs, protect_eez)
+        prot_cost[ii] = cost
+        data = data[data[:, :EEZ] .!= protect_eez, :] # protect the EEZ
+        new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
+        new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
+        if length(new_protected_ids) > 0
+            # add the new protected individuals to the list
+            prot_number[ii] = length(new_protected_ids)
+            prot_times[ids .∈ (new_protected_ids,)] .= ii-1 # add the time at which they were protected
+        end
+        # println("EEZ: ", protect_eez, " time: ", ii, " # protected: ", length(new_protected_ids), " # unprotected: ", length(new_unprotected_ids), " cost: ", cost)
+        unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
+        # println(length(unique(data[:, :EEZ])))
+    end
+    return prot_times, prot_number, prot_cost, prot_eezs
+end
+
+
+
+function run_game_incentives(data; start_protecting = [-1], α=1, operation = /)
+    ids = unique(data[:, :newid])
+    eezs = unique(data[:, :EEZ])
+    iterated_eezs = setdiff(eezs, start_protecting)
+    Neez = length(iterated_eezs)
+
+    # Initialize the variables
+    unprotected_ids  = unique(data[:, :newid])
+    prot_times  = zeros(Int64, length(ids))
+    prot_number = zeros(Int64, Neez+1)
+    prot_cost   = zeros(Float64, Neez+1)
+    prot_eezs   = copy(start_protecting)
+
+    # Protect the first EEZs
+    data = data[data[:, :EEZ] .∈ (iterated_eezs, ), :] # protect the EEZ
+    new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
+    new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
+    if length(new_protected_ids) > 0
+        # add the new protected individuals to the list
+        prot_number[1] = length(new_protected_ids)
+        prot_times[ids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
+    end
+    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
+
+    unprotected_eezs = copy(iterated_eezs)
+
+    # Compute the potential cost of each EEZ being the last to be protected
+    unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
+    last_cooperating_payoffs = compute_final_payoff(unique_pairs)
+    @assert sum(last_cooperating_payoffs) == size(unique_pairs)[1] "The sum of the last cooperating payoffs is not equal to the number of unprotected individuals"
+    for ii in 2:Neez+1
+        unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
+        unprotected_eezs = unique(unique_pairs[:, :EEZ])
+        # 1- compute the ids weights
+        id_weights = compute_id_weight(unique_pairs; α=α)
+        # 2- compute the payoff of each EEZ
+        eezs_payoffs = compute_eez_payoff(unique_pairs, id_weights)
+        # 3- Compute the hurry of each EEZ to cooperate
+        eezs_hurry = operation.(eezs_payoffs, last_cooperating_payoffs)
+        # 4- find the EEZ with the highest hurry, and protect it. If there is a tie, protect the one with the highest payoff
+
+        max_hurry = maximum(eezs_hurry)
+        arg = findall(eezs_hurry .== max_hurry)
+        if length(arg) > 1
+                arg = arg[argmax(eezs_payoffs[arg])]
+        end
+        arg = arg[1]
+
+        cost = eezs_payoffs[arg]
+        protect_eez = unprotected_eezs[arg]
+
+        # 5- update the last cooperating payoffs removing the protected EEZ
+        deleteat!(last_cooperating_payoffs, arg)
+
         # 4- Protect that EEZ
         push!(prot_eezs, protect_eez)
         prot_cost[ii] = cost

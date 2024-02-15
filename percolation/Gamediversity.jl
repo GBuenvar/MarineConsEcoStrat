@@ -138,13 +138,24 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1)
     iterated_eezs = setdiff(eezs, start_protecting)
     Neez = length(iterated_eezs)
 
+    data_div = copy(data) # make a copy of the data to compute the diversity of the protected areas
+
+
     # Initialize the variables
     unprotected_ids  = unique(data[:, :newid])
     prot_times  = zeros(Int64, length(ids))
     prot_number = zeros(Int64, Neez+1)
     prot_cost   = zeros(Float64, Neez+1)
     prot_eezs   = copy(start_protecting)
+    global_diversity = zeros(Int64, Neez+1)
 
+    # Compute the initial diversity of the protected areas
+    unique_pairs = unique(data_div[:, ["newid", "Species", "EEZ"]])
+    sizes = Vector{Float64}(unique_pairs[unique_pairs.EEZ .∈ (start_protecting, ), :Species])
+    sizes = sizes ./ sum(sizes)
+    initial_div = hill_number(sizes, q=q)
+    global_diversity[1] = initial_div
+    
     # Protect the first EEZs
     data = data[data[:, :EEZ] .∈ (iterated_eezs, ), :] # protect the EEZ
     new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
@@ -154,8 +165,8 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1)
         prot_number[1] = length(new_protected_ids)
         prot_times[ids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
     end
-    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
 
+    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
     unprotected_eezs = copy(iterated_eezs)
 
     # Compute the potential cost of each EEZ being the last to be protected
@@ -222,7 +233,7 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1)
     return prot_times, prot_number, prot_cost, prot_eezs
 end
 
-##
+# %%
 
 
 q = 0.
@@ -232,36 +243,26 @@ l = @layout [ [a{0.49w} b{0.49w}
                c{0.49w} d{0.49w}] e{0.1w} ]
 # get a list of colors for the plots using a gradient from red to blue
 Nqs = 11.
-colors = cgrad([:red, :blue], Int(Nqs), categorical = true, rev=true)
-pqs = plot(
-            legend=false, 
+reds = cgrad([:red, :white], Int(Nqs), categorical = true, rev=true)
+blacks  = cgrad([:black, :white], Int(Nqs), categorical = true, rev=true)
+blues = cgrad([:blue, :white], Int(Nqs), categorical = true, rev=true)
+pqs = plot( label = false,
             dpi=300, 
             size=(400, 400), 
             xlabel="EEZs cooperating", 
             ylabel="Fraction protected",
             xticks=(1:20:(length(eezs)- length(rich)),length(rich):20:length(eezs))
             )
-
-pqs_species = plot(
-        legend=false, 
-        dpi=300, 
-        size=(400, 400), 
-        xlabel="EEZs cooperating", 
-        ylabel="Fraction protected",
-        xticks=(1:20:(length(eezs)- length(rich)),length(rich):20:length(eezs))
-        )
-
-cost_plot = plot(
-        legend=false, 
-        dpi=300, 
-        size=(400, 400), 
-        xlabel="EEZs cooperating", 
-        ylabel="Cost",
-        xticks=(1:20:(length(eezs)- length(rich)),length(rich):20:length(eezs))
-        ) 
+cost_plot = plot(label=false, 
+                dpi=300, 
+                size=(400, 400), 
+                xlabel="EEZs cooperating", 
+                ylabel="Cost",
+                xticks=(1:20:(length(eezs)- length(rich)),length(rich):20:length(eezs))
+                ) 
         
 cost_species_plot = plot(
-    legend=false, 
+    label=false, 
     dpi=300, 
     size=(400, 400), 
     xlabel="EEZs cooperating", 
@@ -274,38 +275,56 @@ for (i,q) in enumerate(0.:Nqs-1)
 
 
     plot!(pqs, cumsum(protected_number)./N, 
-        label="$(Int(q))", 
-        color = colors[i], 
-        lw=0.3
+        label=false, 
+        color = blacks[i], 
+        lw=1
         )
 
-    plot!(pqs_species, cumsum(prot_species_number)./N_species,
-        label="$(Int(q))", 
-        color = colors[i], 
-        lw=0.3
+    plot!(pqs, cumsum(prot_species_number)./N_species,
+        label=false, 
+        color = reds[i], 
+        lw=1
         )
 
     plot!(cost_plot, cumsum(prot_cost),
-        label="$(Int(q))", 
-        color = colors[i], 
-        lw=0.3,
+        label=false, 
+        color = blacks[i], 
+        lw=1,
         lty=:dot
         )
 
     plot!(cost_plot, prot_cost,
-        label="$(Int(q))", 
-        color = colors[i], 
-        lw=0.3
+        label=false, 
+        color = blues[i], 
+        lw=1
         )
     
     plot!(cost_species_plot, cumsum(prot_cost)./cumsum(prot_species_number),
-        label="$(Int(q))", 
-        color = colors[i], 
-        lw=0.3,
+        label=false, 
+        color = reds[i], 
+        lw=1,
+        lty=:dot
+        )
+    plot!(cost_species_plot, cumsum(prot_cost)./cumsum(protected_number),
+        label=false, 
+        color = blacks[i], 
+        lw=1,
         lty=:dot
         )
     
 end
+
+plot!(pqs, [[NaN], [NaN]],
+    c = [:red :black],
+    label=["Species" "Individuals"],)
+plot!(cost_plot, [[NaN], [NaN]],
+    c = [:blue :black],
+    label=["EEZ" "Cumulated"],)
+plot!(cost_species_plot, [[NaN], [NaN]],
+    c = [:red :black],
+    label=["Species" "Individuals"],)
+
+
 # set legend title
 xx = range(0,1,100)
 zz = zero(xx)' .+ xx
@@ -314,20 +333,29 @@ cbar = heatmap(xx, xx, zz,
                 yticks=(0.5/(Nqs-1):0.2:1),#, range(0, Int(Nqs)-1, 6)), 
                 ratio=20, 
                 legend=false, 
-                fc=colors, lims=(0,1),
+                fc=reds, lims=(0,1),
                 framestyle=:box, 
                 ylabel="q",
                 yguidefontrotation=-90,
                 );
 # plot!(cbar, title="q")
 
-plot_q = plot!(pqs, pqs_species, cost_plot, cost_species_plot, cbar, layout=l, size=(1000, 800), dpi=300, bottom_margin=20Plots.PlotMeasures.px, left_margin=20Plots.PlotMeasures.px)
+plot_q = plot!(pqs, cost_plot, cost_species_plot, cost_species_plot, cbar, layout=l, size=(1000, 800), dpi=300, bottom_margin=20Plots.PlotMeasures.px, left_margin=20Plots.PlotMeasures.px)
 
 
 
 # plot(pqs)
 
-##
+# %%
+
+
+q = 0.
+α = 0.
+
+protected_times, protected_number, prot_cost, prot_eezs = run_diversity(agg_data; start_protecting = rich, α=α, q=q)
+prot_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
+
+
 p1 = plot_protected(protected_number, prot_species_number, N, N_species, "Protected individuals and species", savename = "none", title_location = :left)
 pcost = plot_protection_cost(prot_cost, "Protection cost", savename = "none", title_location = :left)
 p3 = plot_protection_cost_per_individual(prot_cost, protected_number, prot_species_number, "Protection cost per individual and species", title_location = :left)

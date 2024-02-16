@@ -132,13 +132,37 @@ function hill_number(p::Vector{Float64}; q::Float64=0., normalization_threshold:
     return h
 end
 
-function run_diversity(data; start_protecting = [-1], α=1., q=1)
+function compute_species_dist(df)
+    # df is a dataframe with the columns newid, Species, EEZ
+    # restricted to the eez of interest
+    id_sp_pairs = unique(df[:, [:newid, :Species]])
+    sp_size = combine(groupby(id_sp_pairs, :Species), nrow)
+    sizes = Vector{Float64}(sp_size.nrow)
+    sizes = sizes ./ sum(sizes)
+    # sort the sizes
+    sizes = sort(sizes, rev=true)
+    return sizes
+end
+
+
+function compute_div(df; q=0.)
+    # df is a dataframe with the columns newid, Species, EEZ
+    # restricted to the eez of interest
+    sizes = compute_species_dist(df)
+    df_div = hill_number(sizes, q=q)
+    return df_div
+end
+
+## 
+
+function run_diversity(data; start_protecting = [-1], α=1., q=1.)
+
+    # 
     ids = unique(data[:, :newid])
     eezs = unique(data[:, :EEZ])
     iterated_eezs = setdiff(eezs, start_protecting)
     Neez = length(iterated_eezs)
-
-    data_div = copy(data) # make a copy of the data to compute the diversity of the protected areas
+    data_div = data # make a copy of the data to compute the diversity of the protected areas
 
 
     # Initialize the variables
@@ -147,14 +171,8 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1)
     prot_number = zeros(Int64, Neez+1)
     prot_cost   = zeros(Float64, Neez+1)
     prot_eezs   = copy(start_protecting)
-    global_diversity = zeros(Int64, Neez+1)
+    global_div = zeros(Float64, Neez+1)
 
-    # Compute the initial diversity of the protected areas
-    unique_pairs = unique(data_div[:, ["newid", "Species", "EEZ"]])
-    sizes = Vector{Float64}(unique_pairs[unique_pairs.EEZ .∈ (start_protecting, ), :Species])
-    sizes = sizes ./ sum(sizes)
-    initial_div = hill_number(sizes, q=q)
-    global_diversity[1] = initial_div
     
     # Protect the first EEZs
     data = data[data[:, :EEZ] .∈ (iterated_eezs, ), :] # protect the EEZ
@@ -168,43 +186,46 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1)
 
     unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
     unprotected_eezs = copy(iterated_eezs)
-
-    # Compute the potential cost of each EEZ being the last to be protected
     unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
+
+    # Compute the initial diversity of the protected areas
+    global_div[1] = compute_div(data_div[data_div.EEZ .∈ [start_protecting], :], q=q)
+
+    # 1- compute the diversity of each unprotected EEZ
+    eezs_diversity = zeros(Float64, length(unprotected_eezs))
+    eez_sizes = Vector{Vector{Float64}}(undef, length(unprotected_eezs))
+    # Initialize a vector of vector{Float64} that potentially will be of different lengths    
+    for (i, eez) in enumerate(unprotected_eezs)
+        s = compute_species_dist(unique_pairs[unique_pairs.EEZ .== eez, :])
+        eez_sizes[i] = s 
+        eezs_diversity[i] = hill_number(s, q=q)
+    end
+    
     for ii in 2:Neez+1
         unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
         unprotected_eezs = unique(unique_pairs[:, :EEZ])
 
-
-
-        # 1- compute the diversity of each EEZ
-        # println("computing diversity for q = ", q, " at time ", ii, " with ", length(unprotected_eezs), " EEZs left.")
-        eezs_diversity = zeros(Float64, length(unprotected_eezs))
-        for (i, eez) in enumerate(unprotected_eezs)
-            sizes = Vector{Float64}(unique_pairs[unique_pairs.EEZ .== eez, :Species])
-            sizes = sizes ./ sum(sizes)
-            eezs_diversity[i] = hill_number(sizes, q=q)
-        end
         # 2- find the EEZ with the highest diversity, and protect it. If there is a tie, protect the one with the highest diversity with q+1
         max_diversity = maximum(eezs_diversity)
         arg = findall(eezs_diversity .== max_diversity)
         to_protect = unprotected_eezs[arg]
+
+        q0 = q
         while length(to_protect) > 1
             # if the distribution is exactly the same for all the eez, just pick one randomly
-            sizes = [Vector{Float64}(unique_pairs[unique_pairs.EEZ .== eez, :Species]) for eez in to_protect]
-            sizes = [s./ sum(s) for s in sizes]
-            if all([all(sizes[1] .== s) for s in sizes[2:end]])
+            ss = eez_sizes[arg] 
+            if all([ss[1] == s for s in ss[2:end]])
                 to_protect = [to_protect[rand(1:end)]]
                 break
             end
-            println("There is a tie, breaking it with q=$(q+1)")
-            q += 1
-            eezs_diversity = zeros(Float64, length(to_protect))
-            for (i, size) in enumerate(sizes)
-                eezs_diversity[i] = hill_number(size, q=q)
+            q0 += 1
+            println("There is a tie, breaking it with q=$(q0)")
+            eezs_diversity_tiebraker = zeros(Float64, length(to_protect))
+            for (i, size) in enumerate(ss)
+                eezs_diversity_tiebraker[i] = hill_number(size, q=q)
             end
-            max_diversity = maximum(eezs_diversity)
-            arg = findall(eezs_diversity .== max_diversity)
+            max_diversity = maximum(eezs_diversity_tiebraker)
+            arg = findall(eezs_diversity_tiebraker .== max_diversity)
             to_protect = to_protect[arg]
         end
         protect_eez = to_protect[1]
@@ -212,9 +233,10 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1)
         # 3- compute the id weight only for the individuals that are present in protect_eez
         visiting_ids = unique(unique_pairs[unique_pairs.EEZ .== protect_eez, :newid])
         eez_id_weights = compute_id_weight(unique_pairs[unique_pairs.newid .∈ (visiting_ids, ), :], α=α)
-        # 4- compute the cooperation cost of the EEZ
 
+        # 4- compute the cooperation cost of the EEZ
         cost = sum(eez_id_weights)
+
         # 5- Protect that EEZ
         push!(prot_eezs, protect_eez)
         prot_cost[ii] = cost
@@ -226,11 +248,16 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1)
             prot_number[ii] = length(new_protected_ids)
             prot_times[ids .∈ (new_protected_ids,)] .= ii-1 # add the time at which they were protected
         end
-        # println("EEZ: ", protect_eez, " time: ", ii, " # protected: ", length(new_protected_ids), " # unprotected: ", length(new_unprotected_ids), " cost: ", cost)
+
+        # drop the diversity of the protected eez
+        eezs_diversity = eezs_diversity[unprotected_eezs .!= protect_eez]
         unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
         # println(length(unique(data[:, :EEZ])))
+
+        # 6- Compute the diversity of the protected areas
+        global_div[ii] = compute_div(data_div[.!(data_div.EEZ .∈ [unprotected_ids, ]), :], q=q)
     end
-    return prot_times, prot_number, prot_cost, prot_eezs
+    return prot_times, prot_number, prot_cost, prot_eezs, global_div
 end
 
 # %%
@@ -243,9 +270,9 @@ l = @layout [ [a{0.49w} b{0.49w}
                c{0.49w} d{0.49w}] e{0.1w} ]
 # get a list of colors for the plots using a gradient from red to blue
 Nqs = 11.
-reds = cgrad([:red, :white], Int(Nqs), categorical = true, rev=true)
-blacks  = cgrad([:black, :white], Int(Nqs), categorical = true, rev=true)
-blues = cgrad([:blue, :white], Int(Nqs), categorical = true, rev=true)
+reds = cgrad([RGBA(1,0,0,1), RGBA(1,0,0,0.2)], Int(Nqs), categorical = true, rev=true)
+blacks  = cgrad([RGBA(0,0,0,1), RGBA(0,0,0,0.2)], Int(Nqs), categorical = true, rev=true)
+blues = cgrad([RGBA(0,0,1,1.), RGBA(0,0,1,0.2)], Int(Nqs), categorical = true, rev=true)
 pqs = plot( label = false,
             dpi=300, 
             size=(400, 400), 
@@ -269,8 +296,21 @@ cost_species_plot = plot(
     ylabel="Cost/especies",
     xticks=(1:20:(length(eezs)- length(rich)),length(rich):20:length(eezs))
     )         
+
+div_plot = plot(
+    label=false, 
+    dpi=300, 
+    size=(400, 400), 
+    xlabel="EEZs cooperating", 
+    ylabel="Protected areas diversity (H(q))",
+    xticks=(1:20:(length(eezs)- length(rich)),length(rich):20:length(eezs))
+)
+
 for (i,q) in enumerate(0.:Nqs-1)
-    protected_times, protected_number, prot_cost, prot_eezs = run_diversity(agg_data; start_protecting = rich, α=α, q=q)
+    println("________________")
+    println("q = $q")
+    println("________________")
+    protected_times, protected_number, prot_cost, prot_eezs, global_diversity = run_diversity(agg_data; start_protecting = rich, α=α, q=q)
     prot_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 
 
@@ -311,7 +351,14 @@ for (i,q) in enumerate(0.:Nqs-1)
         lw=1,
         lty=:dot
         )
-    
+
+    plot!(div_plot, global_diversity,
+        label=false, 
+        color = blacks[i], 
+        lw=1,
+        lty=:dot
+        )
+
 end
 
 plot!(pqs, [[NaN], [NaN]],
@@ -324,11 +371,11 @@ plot!(cost_species_plot, [[NaN], [NaN]],
     c = [:red :black],
     label=["Species" "Individuals"],)
 
-
+##
 # set legend title
 xx = range(0,1,100)
 zz = zero(xx)' .+ xx
-cbar = heatmap(xx, xx, zz, 
+cbar = heatmap(zz, 
                 xticks=false, 
                 yticks=(0.5/(Nqs-1):0.2:1),#, range(0, Int(Nqs)-1, 6)), 
                 ratio=20, 
@@ -340,7 +387,7 @@ cbar = heatmap(xx, xx, zz,
                 );
 # plot!(cbar, title="q")
 
-plot_q = plot!(pqs, cost_plot, cost_species_plot, cost_species_plot, cbar, layout=l, size=(1000, 800), dpi=300, bottom_margin=20Plots.PlotMeasures.px, left_margin=20Plots.PlotMeasures.px)
+plot_q = plot!(pqs, cost_plot, cost_species_plot, div_plot, cbar, layout=l, size=(1000, 800), dpi=300, bottom_margin=20Plots.PlotMeasures.px, left_margin=20Plots.PlotMeasures.px)
 
 
 

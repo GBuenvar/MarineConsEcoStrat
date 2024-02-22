@@ -172,6 +172,7 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1.)
     prot_cost   = zeros(Float64, Neez+1)
     prot_eezs   = copy(start_protecting)
     global_div = zeros(Float64, Neez+1)
+    eez_div    = zeros(Float64, Neez+1)
 
     
     # Protect the first EEZs
@@ -189,8 +190,10 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1.)
     unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
 
     # Compute the initial diversity of the protected areas
-    global_div[1] = compute_div(data_div[data_div.EEZ .∈ [start_protecting], :], q=q)
-
+    initial_global_div = compute_div(data_div[data_div.EEZ .∈ [start_protecting], :], q=q)
+    mean_initial_div = mean([compute_div(data_div[data_div.EEZ .== eez, :], q=q) for eez in start_protecting])
+    global_div[1] = initial_global_div
+    eez_div[1] = mean_initial_div
     # 1- compute the diversity of each unprotected EEZ
     eezs_diversity = zeros(Float64, length(unprotected_eezs))
     eez_sizes = Vector{Vector{Float64}}(undef, length(unprotected_eezs))
@@ -250,6 +253,7 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1.)
         end
 
         # drop the diversity of the protected eez
+        eez_div[ii] = eezs_diversity[unprotected_eezs .== protect_eez][1]
         eezs_diversity = eezs_diversity[unprotected_eezs .!= protect_eez]
         unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
         # println(length(unique(data[:, :EEZ])))
@@ -257,7 +261,7 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1.)
         # 6- Compute the diversity of the protected areas
         global_div[ii] = compute_div(data_div[.!(data_div.EEZ .∈ [unprotected_ids, ]), :], q=q)
     end
-    return prot_times, prot_number, prot_cost, prot_eezs, global_div
+    return prot_times, prot_number, prot_cost, prot_eezs, global_div, eez_div
 end
 
 # %%
@@ -267,9 +271,10 @@ q = 0.
 α = 0.
 ##
 l = @layout [ [a{0.49w} b{0.49w}
-               c{0.49w} d{0.49w}] e{0.1w} ]
+               c{0.49w} d{0.49w}] e{0.05w} ]
 # get a list of colors for the plots using a gradient from red to blue
-Nqs = 11.
+rich = rich[1:end-2]
+Nqs = 6.
 reds = cgrad([RGBA(1,0,0,1), RGBA(1,0,0,0.2)], Int(Nqs), categorical = true, rev=true)
 blacks  = cgrad([RGBA(0,0,0,1), RGBA(0,0,0,0.2)], Int(Nqs), categorical = true, rev=true)
 blues = cgrad([RGBA(0,0,1,1.), RGBA(0,0,1,0.2)], Int(Nqs), categorical = true, rev=true)
@@ -293,9 +298,13 @@ cost_species_plot = plot(
     dpi=300, 
     size=(400, 400), 
     xlabel="EEZs cooperating", 
-    ylabel="Cost/especies",
+    ylabel="Cost/especies", 
+    yguidefontcolor=:red,
     xticks=(1:20:(length(eezs)- length(rich)),length(rich):20:length(eezs))
     )         
+
+cost_ind_plot = twinx(cost_species_plot)
+plot!(cost_ind_plot, ylabel="Cost/individuals", yguidefontcolor=:black)
 
 div_plot = plot(
     label=false, 
@@ -303,14 +312,19 @@ div_plot = plot(
     size=(400, 400), 
     xlabel="EEZs cooperating", 
     ylabel="Protected areas diversity (H(q))",
+    yguidefontcolor= :black,
     xticks=(1:20:(length(eezs)- length(rich)),length(rich):20:length(eezs))
 )
+
+eez_div_plot = twinx(div_plot)
+plot!(eez_div_plot, ylabel="EEZ diversity (H(q))",
+    yguidefontcolor= :blue)
 
 for (i,q) in enumerate(0.:Nqs-1)
     println("________________")
     println("q = $q")
     println("________________")
-    protected_times, protected_number, prot_cost, prot_eezs, global_diversity = run_diversity(agg_data; start_protecting = rich, α=α, q=q)
+    protected_times, protected_number, prot_cost, prot_eezs, global_diversity, eez_div = run_diversity(agg_data; start_protecting = rich, α=α, q=q)
     prot_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 
 
@@ -345,7 +359,7 @@ for (i,q) in enumerate(0.:Nqs-1)
         lw=1,
         lty=:dot
         )
-    plot!(cost_species_plot, cumsum(prot_cost)./cumsum(protected_number),
+    plot!(cost_ind_plot, cumsum(prot_cost)./cumsum(protected_number),
         label=false, 
         color = blacks[i], 
         lw=1,
@@ -359,6 +373,14 @@ for (i,q) in enumerate(0.:Nqs-1)
         lty=:dot
         )
 
+    plot!(eez_div_plot, eez_div,
+        label=false, 
+        color = blues[i], 
+        lw=1,
+        lty=:dot
+        )
+
+
 end
 
 plot!(pqs, [[NaN], [NaN]],
@@ -371,21 +393,50 @@ plot!(cost_species_plot, [[NaN], [NaN]],
     c = [:red :black],
     label=["Species" "Individuals"],)
 
-##
+
 # set legend title
 xx = range(0,1,100)
-zz = zero(xx)' .+ xx
-cbar = heatmap(zz, 
-                xticks=false, 
-                yticks=(0.5/(Nqs-1):0.2:1),#, range(0, Int(Nqs)-1, 6)), 
-                ratio=20, 
+zz = Matrix{Float64}(undef, 100, 3)
+zz[:,:] .= NaN
+# zz[:, 1] .= xx
+
+cbar = heatmap(zz,
+    xticks=false, 
+    yticks=false,#((collect(range(0, Nqs-1, 6)) .+ 0.5) .*100 ./ Nqs, range(0, Nqs-1, 6)), 
+    size = (50,300), 
+    legend=false, 
+    fc=reds, 
+    # lims=(0,1),
+    framestyle=:none, 
+    ylabel="q",
+    yguidefontrotation=-90,
+    );
+# cbar
+for ytck in range(0, Nqs-1, 6)
+    annotate!(cbar,
+                -0.3,
+                (ytck+0.5).*100 ./ Nqs,
+                (ytck, 8))
+end
+
+for (ic, col) in enumerate([reds, blues, blacks])
+    zz = Matrix{Float64}(undef, 100, 3)
+    zz[:, :] .= NaN
+    zz[:, ic] .= xx 
+    heatmap!(cbar,
+                zz,
+                # xticks=false, 
+                # yticks=(0.5/(Nqs-1):0.2:1),#, range(0, Int(Nqs)-1, 6)), 
+                # ratio=20, 
                 legend=false, 
-                fc=reds, lims=(0,1),
+                fc=col, 
+                # lims=(0,1),
                 framestyle=:box, 
-                ylabel="q",
-                yguidefontrotation=-90,
+                # ylabel="q",
+                # yguidefontrotation=-90,
                 );
-# plot!(cbar, title="q")
+end
+cbar
 
 plot_q = plot!(pqs, cost_plot, cost_species_plot, div_plot, cbar, layout=l, size=(1000, 800), dpi=300, bottom_margin=20Plots.PlotMeasures.px, left_margin=20Plots.PlotMeasures.px)
 

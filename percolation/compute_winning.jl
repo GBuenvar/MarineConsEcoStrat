@@ -11,15 +11,18 @@ s = ArgParseSettings()
         help = "number of repetitions for the stochastic outcomes"
         default = 1
         arg_type = Int64
+    "--saving", "-s"
+        help = "save the results to a file"
+        default = false
+        arg_type = Bool
 end
 
 p = parse_args(ARGS, s)
 
 nreps = p["nreps"]
+saving = p["saving"]
 
 ##
-
-trajectories = CSV.read("data/full_data_inds.csv.gz", DataFrame)
 # Read the codes dictionaries of the species and the eezs
 eez_codes = CSV.read("data/eez_to_int.csv", DataFrame)
 int_to_eez = Dict(zip(eez_codes.Int, eez_codes.EEZ))
@@ -37,10 +40,9 @@ eez_to_iso3["-1"] = "-1"
 mkpath("percolation/comb_prob")
 
 ##
-# Since I am only interested in some specific fields of the data, I will create a new dataframe with only those fields
+# Read the data, consisting on the newid, the species, the eez and the time spent in the eez    
+agg_data = CSV.read("data/agg_data.csv", DataFrame)
 
-agg_data = combine(groupby(trajectories, [:newid, :Species, :EEZ]), "timestay (1/30days)" => sum)
-@assert sum(agg_data[:, end])/30 == length(unique(agg_data[:, :newid])) "Total time (/30) in days is not equal to the number of individuals"
 id_to_species_int = Dict(zip(agg_data.newid, agg_data.Species))
 newids = unique(agg_data[:, :newid])
 N = length(newids)
@@ -48,6 +50,7 @@ N_species = length(unique(agg_data[:, :Species]))
 
 eezs = unique(agg_data[:, :EEZ])
 iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs];
+
 
 ##
 
@@ -253,7 +256,7 @@ function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000)
     # 1- Compute nreps haunting events for each newid, 
     println("Computing haunting events")
     events = zeros(Int64, length(newids), nreps)
-    for (i, id) in enumerate(newids)
+    @views for (i, id) in enumerate(newids)
         events[i, :] = N_haunting_events(id, agg_data, nreps=nreps)
     end
 
@@ -265,8 +268,8 @@ function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000)
     # 3- plot the results and save the figure
     println("Plotting the results")
     sort_idx = sortperm(N_as, rev=true) # sort the eezs by the number of animals visiting them
-    p1 = plot(labels = false, title="prob of haunting r or more", xlabel="r/r_max", ylabel="P(r)", palette=:batlow)
-    p2 = plot(labels = false, title="prob of haunting r", xlabel="r/r_max", ylabel="P(r)", palette=:batlow)
+    p1 = plot(labels = false, title="prob of haunting r or more", xlabel="r/r_max", ylabel="P(X>r)", palette=:batlow, dpi=300)
+    p2 = plot(labels = false, title="prob of haunting r", xlabel="r/r_max", ylabel="P(X=r)", palette=:batlow, dpi=300)
     for i in sort_idx
         p_i = probs_N[:, i]
         cum_p_i = cum_p[:, i]
@@ -280,12 +283,13 @@ function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000)
         plot!(p2, x, p_i, labels=false)
         plot!(p1, x, cum_p_i, labels=false)
     end
-    p3 = plot(p1,p2, size=(1200, 400), leftmargin=25Plots.px, bottommargin=20Plots.px, legend=false)
+    p3 = plot(p2,p1, size=(1200, 400), leftmargin=25Plots.px, bottommargin=20Plots.px, legend=false, dpi=300)
     println("done!")
-    savefig("percolation/comb_prob/haunting_probability.png")
+    savefig(p3, "percolation/comb_prob/haunting_probability.pdf")
+    savefig(p3, "percolation/comb_prob/haunting_probability.png")
     return probs_N, cum_p, p3
 end
 
 @time p, cum_p, p3 = stochastic_outcomes(agg_data, nreps=nreps)
-p3
+
 ##

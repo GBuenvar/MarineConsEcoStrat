@@ -20,17 +20,13 @@ include("percolation_functions.jl")
 ##
 # open the full_data_inds.csv.gz file
 
-trajectories = CSV.read("data/full_data_inds.csv.gz", DataFrame)
 # Read the codes dictionaries of the species and the eezs
 eez_codes = CSV.read("data/eez_to_int.csv", DataFrame)
 int_to_eez = Dict(zip(eez_codes.Int, eez_codes.EEZ))
+eez_to_int = Dict(zip(eez_codes.EEZ, eez_codes.Int))
 
 species_codes = CSV.read("data/species_to_int.csv", DataFrame)
 int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
-
-# Read the economic data
-economic_data = DataFrame(XLSX.readtable("data/CLASS.xlsx", "List of economies"))
-eez_to_int = Dict(zip(eez_codes.EEZ, eez_codes.Int))
 
 # read the eez_to_iso3 file
 eez_to_iso3_data = CSV.read("data/eez_to_iso3.csv", DataFrame)
@@ -41,18 +37,18 @@ eez_to_iso3["-1"] = "-1"
 mkpath("percolation/Game")
 
 ##
-# Since I am only interested in some specific fields of the data, I will create a new dataframe with only those fields
+# Read the data, consisting on the newid, the species, the eez and the time spent in the eez    
+agg_data = CSV.read("data/agg_data.csv", DataFrame)
 
-agg_data = combine(groupby(trajectories, [:newid, :Species, :EEZ]), "timestay (1/30days)" => sum)
-@assert sum(agg_data[:, end])/30 == length(unique(agg_data[:, :newid])) "Total time (/30) in days is not equal to the number of individuals"
 id_to_species_int = Dict(zip(agg_data.newid, agg_data.Species))
 newids = unique(agg_data[:, :newid])
 N = length(newids)
 N_species = length(unique(agg_data[:, :Species]))
 
 eezs = unique(agg_data[:, :EEZ])
-iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs]
+iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs];
 ##
+
 
 
 

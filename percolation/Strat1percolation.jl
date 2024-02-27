@@ -24,7 +24,6 @@ eez_to_iso3_data = CSV.read("data/eez_to_iso3.csv", DataFrame)
 eez_to_iso3 = Dict(zip(eez_to_iso3_data.Country, eez_to_iso3_data.ISO_3digit))
 # add High Seas
 eez_to_iso3["-1"] = "-1"
-
 mkpath("percolation/Strat1")
 
 ##

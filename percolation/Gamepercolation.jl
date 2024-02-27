@@ -24,6 +24,8 @@ eez_to_iso3_data = CSV.read("data/eez_to_iso3.csv", DataFrame)
 eez_to_iso3 = Dict(zip(eez_to_iso3_data.Country, eez_to_iso3_data.ISO_3digit))
 # add High Seas
 eez_to_iso3["-1"] = "-1"
+# read the economic data
+economic_data = DataFrame(XLSX.readtable("data/CLASS.xlsx", "List of economies"))
 
 mkpath("percolation/Game")
 

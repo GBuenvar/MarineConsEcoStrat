@@ -1,7 +1,29 @@
-using CSV, DataFrames, Random, Statistics, Plots, XLSX
+using CSV, DataFrames, Random, Statistics, Plots, XLSX, ArgParse
 include("percolation_functions.jl")
 ##
 
+s = ArgParseSettings()
+@add_arg_table! s begin
+    "--Nqs", "-q"
+        help = "Number of q values to plot, from 0 to Nqs-1"
+        default = 10.
+        arg_type = Float64
+    "--alpha", "-a"
+        help = "Alpha parameter for the percolation"
+        default = 1.
+        arg_type = Float64
+    "--saving", "-s"
+        help = "Save the outputs"
+        default = true
+        arg_type = Bool
+
+end
+
+p = parse_args(ARGS, s)
+
+N_qs = p["Nqs"]
+α = p["alpha"]
+saving = p["saving"]
 # En este script se ejecuta una percolación en la que se parte con los países ricos (higer income) cooperando. Se deja, como en otros casos, el parametro alpha
 # libre. Cuando un animal visita vairos paises, su peso, 1, se divide uniformemente 
 # entre todos los paises que visita. Esto significa que se le asigna a cada país la misma 
@@ -33,8 +55,10 @@ eez_to_iso3_data = CSV.read("data/eez_to_iso3.csv", DataFrame)
 eez_to_iso3 = Dict(zip(eez_to_iso3_data.Country, eez_to_iso3_data.ISO_3digit))
 # add High Seas
 eez_to_iso3["-1"] = "-1"
+# read the economic data
+economic_data = DataFrame(XLSX.readtable("data/CLASS.xlsx", "List of economies"))
 
-mkpath("percolation/Game")
+mkpath("percolation/Diversity")
 
 ##
 # Read the data, consisting on the newid, the species, the eez and the time spent in the eez    
@@ -106,10 +130,6 @@ function plot_number_ids(data, prot_eez; xlabel = "EEZs cooperating", ylabel = "
     return p4
 end
 ###
-
-##
-
-operation = /
 
 ##
 
@@ -218,7 +238,7 @@ function run_diversity(data; start_protecting = [-1], α=1., q=1.)
                 break
             end
             q0 += 1
-            println("There is a tie, breaking it with q=$(q0)")
+            q0 > (q+10.) ? println("There is a hard tie, breaking it with q=$(q0)") : nothing
             eezs_diversity_tiebraker = zeros(Float64, length(to_protect))
             for (i, size) in enumerate(ss)
                 eezs_diversity_tiebraker[i] = hill_number(size, q=q)
@@ -264,16 +284,14 @@ end
 
 
 q = 0.
-α = 0.
 ##
 l = @layout [ [a{0.49w} b{0.49w}
                c{0.49w} d{0.49w}] e{0.05w} ]
 # get a list of colors for the plots using a gradient from red to blue
 rich = rich[1:end-2]
-Nqs = 6.
-reds = cgrad([RGBA(1,0,0,1), RGBA(1,0,0,0.2)], Int(Nqs), categorical = true, rev=true)
-blacks  = cgrad([RGBA(0,0,0,1), RGBA(0,0,0,0.2)], Int(Nqs), categorical = true, rev=true)
-blues = cgrad([RGBA(0,0,1,1.), RGBA(0,0,1,0.2)], Int(Nqs), categorical = true, rev=true)
+reds = cgrad([RGBA(1,0,0,1), RGBA(1,0,0,0.2)], Int(N_qs), categorical = true, rev=true)
+blacks  = cgrad([RGBA(0,0,0,1), RGBA(0,0,0,0.2)], Int(N_qs), categorical = true, rev=true)
+blues = cgrad([RGBA(0,0,1,1.), RGBA(0,0,1,0.2)], Int(N_qs), categorical = true, rev=true)
 pqs = plot( label = false,
             dpi=300, 
             size=(400, 400), 
@@ -312,18 +330,26 @@ div_plot = plot(
     xticks=(1:20:(length(eezs)- length(rich)),length(rich):20:length(eezs))
 )
 
+
+
+
 eez_div_plot = twinx(div_plot)
 plot!(eez_div_plot, ylabel="EEZ diversity (H(q))",
     yguidefontcolor= :blue)
 
-for (i,q) in enumerate(0.:Nqs-1)
+for (i,q) in enumerate(0.:N_qs-1)
     println("________________")
     println("q = $q")
     println("________________")
     protected_times, protected_number, prot_cost, prot_eezs, global_diversity, eez_div = run_diversity(agg_data; start_protecting = rich, α=α, q=q)
     prot_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
 
-
+    # save the data
+    if saving        
+        CSV.write("percolation/Diversity/protected_times_q$(Int(q)).csv.gz", DataFrame(protected_times=protected_times))
+        CSV.write("percolation/Diversity/protected_number_q$(Int(q)).csv.gz", DataFrame(protected_number=protected_number))
+        CSV.write("percolation/Diversity/protected_species_times_q$(Int(q)).csv.gz", DataFrame(prot_species_times=protected_species_times))
+    end 
     plot!(pqs, cumsum(protected_number)./N, 
         label=false, 
         color = blacks[i], 
@@ -392,13 +418,13 @@ plot!(cost_species_plot, [[NaN], [NaN]],
 
 # set legend title
 xx = range(0,1,100)
-zz = Matrix{Float64}(undef, 100, 3)
-zz[:,:] .= NaN
+ZZ = Matrix{Float64}(undef, 100, 3)
+ZZ[:,:] .= NaN
 # zz[:, 1] .= xx
 
-cbar = heatmap(zz,
+cbar = heatmap(ZZ,
     xticks=false, 
-    yticks=false,#((collect(range(0, Nqs-1, 6)) .+ 0.5) .*100 ./ Nqs, range(0, Nqs-1, 6)), 
+    yticks=false,#((collect(range(0, N_qs-1, 6)) .+ 0.5) .*100 ./ N_qs, range(0, N_qs-1, 6)), 
     size = (50,300), 
     legend=false, 
     fc=reds, 
@@ -408,10 +434,10 @@ cbar = heatmap(zz,
     yguidefontrotation=-90,
     );
 # cbar
-for ytck in range(0, Nqs-1, 6)
+for ytck in range(0, N_qs-1, 6)
     annotate!(cbar,
                 -0.3,
-                (ytck+0.5).*100 ./ Nqs,
+                (ytck+0.5).*100 ./ N_qs,
                 (ytck, 8))
 end
 
@@ -422,7 +448,7 @@ for (ic, col) in enumerate([reds, blues, blacks])
     heatmap!(cbar,
                 zz,
                 # xticks=false, 
-                # yticks=(0.5/(Nqs-1):0.2:1),#, range(0, Int(Nqs)-1, 6)), 
+                # yticks=(0.5/(N_qs-1):0.2:1),#, range(0, Int(N_qs)-1, 6)), 
                 # ratio=20, 
                 legend=false, 
                 fc=col, 
@@ -436,24 +462,9 @@ cbar
 
 plot_q = plot!(pqs, cost_plot, cost_species_plot, div_plot, cbar, layout=l, size=(1000, 800), dpi=300, bottom_margin=20Plots.PlotMeasures.px, left_margin=20Plots.PlotMeasures.px)
 
-
+if saving
+    savefig(plot_q, "percolation/figures/diversity_q_$(Int(N_qs+1)).png")
+    savefig(plot_q, "percolation/figures/diversity_q_$(Int(N_qs+1)).pdf")
+end
 
 # plot(pqs)
-
-# %%
-
-
-q = 0.
-α = 0.
-
-protected_times, protected_number, prot_cost, prot_eezs = run_diversity(agg_data; start_protecting = rich, α=α, q=q)
-prot_species_number, protected_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
-
-
-p1 = plot_protected(protected_number, prot_species_number, N, N_species, "Protected individuals and species", savename = "none", title_location = :left)
-pcost = plot_protection_cost(prot_cost, "Protection cost", savename = "none", title_location = :left)
-p3 = plot_protection_cost_per_individual(prot_cost, protected_number, prot_species_number, "Protection cost per individual and species", title_location = :left)
-p4 = plot_number_ids(agg_data, prot_eezs, title="Number of individuals per EEZ", title_location = :left)
-q+=1
-plot(p1, pcost, p3, p4, layout = (2, 2), size = (1000, 1000), )
-

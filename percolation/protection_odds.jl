@@ -113,6 +113,8 @@ end
 
 eezsvisited = combine(groupby(agg_data, :newid), nrow)[!, :nrow]
 ##
+
+# esto solo es para mostrar que el proxy funciona
 p1 = plot()
 p2 = plot()
 

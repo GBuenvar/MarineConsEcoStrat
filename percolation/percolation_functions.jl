@@ -415,3 +415,146 @@ function protected_species_random(prot_number, prot_times, dict_id_species, newi
     end
     return species, prot_species_number, prot_species_times
 end
+
+
+
+function run_diversity(data; start_protecting = [-1], α=1., q=1.)
+
+    # 
+    ids = unique(data[:, :newid])
+    eezs = unique(data[:, :EEZ])
+    iterated_eezs = setdiff(eezs, start_protecting)
+    Neez = length(iterated_eezs)
+    data_div = data # make a copy of the data to compute the diversity of the protected areas
+
+
+    # Initialize the variables
+    unprotected_ids  = unique(data[:, :newid])
+    prot_times  = zeros(Int64, length(ids))
+    prot_number = zeros(Int64, Neez+1)
+    prot_cost   = zeros(Float64, Neez+1)
+    prot_eezs   = copy(start_protecting)
+    global_div = zeros(Float64, Neez+1)
+    eez_div    = zeros(Float64, Neez+1)
+
+    
+    # Protect the first EEZs
+    data = data[data[:, :EEZ] .∈ (iterated_eezs, ), :] # protect the EEZ
+    new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
+    new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
+    if length(new_protected_ids) > 0
+        # add the new protected individuals to the list
+        prot_number[1] = length(new_protected_ids)
+        prot_times[ids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
+    end
+
+    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
+    unprotected_eezs = copy(iterated_eezs)
+    unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
+
+    # Compute the initial diversity of the protected areas
+    initial_global_div = compute_div(data_div[data_div.EEZ .∈ [start_protecting], :], q=q)
+    mean_initial_div = mean([compute_div(data_div[data_div.EEZ .== eez, :], q=q) for eez in start_protecting])
+    global_div[1] = initial_global_div
+    eez_div[1] = mean_initial_div
+    # 1- compute the diversity of each unprotected EEZ
+    eezs_diversity = zeros(Float64, length(unprotected_eezs))
+    eez_sizes = Vector{Vector{Float64}}(undef, length(unprotected_eezs))
+    # Initialize a vector of vector{Float64} that potentially will be of different lengths    
+    for (i, eez) in enumerate(unprotected_eezs)
+        s = compute_species_dist(unique_pairs[unique_pairs.EEZ .== eez, :])
+        eez_sizes[i] = s 
+        eezs_diversity[i] = hill_number(s, q=q)
+    end
+    
+    for ii in 2:Neez+1
+        unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
+        unprotected_eezs = unique(unique_pairs[:, :EEZ])
+
+        # 2- find the EEZ with the highest diversity, and protect it. If there is a tie, protect the one with the highest diversity with q+1
+        max_diversity = maximum(eezs_diversity)
+        arg = findall(eezs_diversity .== max_diversity)
+        to_protect = unprotected_eezs[arg]
+
+        q0 = q
+        while length(to_protect) > 1
+            # if the distribution is exactly the same for all the eez, just pick one randomly
+            ss = eez_sizes[arg] 
+            if all([ss[1] == s for s in ss[2:end]])
+                to_protect = [to_protect[rand(1:end)]]
+                break
+            end
+            q0 += 1
+            q0 > (q+10.) ? println("There is a hard tie, breaking it with q=$(q0)") : nothing
+            eezs_diversity_tiebraker = zeros(Float64, length(to_protect))
+            for (i, size) in enumerate(ss)
+                eezs_diversity_tiebraker[i] = hill_number(size, q=q)
+            end
+            max_diversity = maximum(eezs_diversity_tiebraker)
+            arg = findall(eezs_diversity_tiebraker .== max_diversity)
+            to_protect = to_protect[arg]
+        end
+        protect_eez = to_protect[1]
+
+        # 3- compute the id weight only for the individuals that are present in protect_eez
+        visiting_ids = unique(unique_pairs[unique_pairs.EEZ .== protect_eez, :newid])
+        eez_id_weights = compute_id_weight(unique_pairs[unique_pairs.newid .∈ (visiting_ids, ), :], α=α)
+
+        # 4- compute the cooperation cost of the EEZ
+        cost = sum(eez_id_weights)
+
+        # 5- Protect that EEZ
+        push!(prot_eezs, protect_eez)
+        prot_cost[ii] = cost
+        data = data[data[:, :EEZ] .!= protect_eez, :] # remove protect_eez from the data
+        new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
+        new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
+        if length(new_protected_ids) > 0
+            # add the new protected individuals to the list
+            prot_number[ii] = length(new_protected_ids)
+            prot_times[ids .∈ (new_protected_ids,)] .= ii-1 # add the time at which they were protected
+        end
+
+        # drop the diversity of the protected eez
+        eez_div[ii] = eezs_diversity[unprotected_eezs .== protect_eez][1]
+        eezs_diversity = eezs_diversity[unprotected_eezs .!= protect_eez]
+        unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
+        # println(length(unique(data[:, :EEZ])))
+
+        # 6- Compute the diversity of the protected areas
+        global_div[ii] = compute_div(data_div[.!(data_div.EEZ .∈ [unprotected_ids, ]), :], q=q)
+    end
+    return prot_times, prot_number, prot_cost, prot_eezs, global_div, eez_div
+end
+
+
+
+# Diversity functions:
+function hill_number(p::Vector{Float64}; q::Float64=0., normalization_threshold::Float64=10^-6)
+    @assert abs(sum(p) - 1 < normalization_threshold) "probabilities are not normalized"
+    @assert isinteger(q) "q must be a float type integer"
+    p = p[p .> 0.]
+    q == 1. ? (h = exp(-sum(p .* log.(p)))) : (h = sum(p.^q)^(1/(1-q)))
+    return h
+end
+
+function compute_species_dist(df)
+    # df is a dataframe with the columns newid, Species, EEZ
+    # restricted to the eez of interest
+    id_sp_pairs = unique(df[:, [:newid, :Species]])
+    sp_size = combine(groupby(id_sp_pairs, :Species), nrow)
+    sizes = Vector{Float64}(sp_size.nrow)
+    sizes = sizes ./ sum(sizes)
+    # sort the sizes
+    sizes = sort(sizes, rev=true)
+    return sizes
+end
+
+
+function compute_div(df; q=0.)
+    # df is a dataframe with the columns newid, Species, EEZ
+    # restricted to the eez of interest
+    sizes = compute_species_dist(df)
+    df_div = hill_number(sizes, q=q)
+    return df_div
+end

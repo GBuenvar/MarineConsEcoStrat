@@ -1,263 +1,263 @@
 EEZ;Int
--1;-1
-Afghanistan;0
-Albania;1
-Algeria;2
-American Samoa;3
-Andorra;4
-Angola;5
-Anguilla;6
-Antarctica;7
-Antigua & Barbuda;8
-Area en controversia (disputed - Peruvian point of view);9
-Area of overlap Australia/Indonesia;10
-Argentina;11
-Armenia;12
-Aruba;13
-Australia;14
-Austria;15
-Azerbaijan;16
-Bahrain;17
-Bangladesh;18
-Barbados;19
-Belarus;20
-Belgium;21
-Belize;22
-Benin;23
-Bermuda;24
-Bhutan;25
-Bolivia;26
-Bonaire, Sint-Eustasius, Saba;27
-Bosnia & Herzegovina;28
-Botswana;29
-Bouvet I.;30
-Brazil;31
-British Indian Ocean Territory;32
-Brunei;33
-Bulgaria;34
-Burkina Faso;35
-Burundi;36
-Cambodia;37
-Cameroon;38
-Canada;39
-Cape Verde;40
-Cayman Is.;41
-Central African Republic;42
-Chad;43
-Chile;44
-China;45
-Christmas I.;46
-Clipperton Island;47
-Cocos Is.;48
-Colombia;49
-Comoros;50
-Conflict zone China/Japan/Taiwan;51
-Conflict zone Japan/Russia;52
-Conflict zone Japan/South Korea;53
-Congo;54
-Congo, DRC;55
-Cook Is.;56
-Costa Rica;57
-Cote d'Ivoire;58
-Croatia;59
-Cuba;60
-Curaçao;61
-Cyprus;62
-Czech Republic;63
-Denmark;64
-Disputed Barbados/Trinidad & Tobago;65
-Disputed Kenya/Somalia;66
-Disputed Western Sahara/Mauritania;67
-Djibouti;68
-Dominica;69
-Dominican Republic;70
-Ecuador;71
-Egypt;72
-El Salvador;73
-Equatorial Guinea;74
-Eritrea;75
-Estonia;76
-Ethiopia;77
-Falkland Islands;78
-Faroe Is.;79
-Fiji;80
-Finland;81
-France;82
-French Guiana;83
-French Polynesia;84
-French Southern & Antarctic Lands;85
-Gabon;86
-Gaza Strip;87
-Georgia;88
-Germany;89
-Ghana;90
-Gibraltar;91
-Greece;92
-Greenland;93
-Grenada;94
-Guadeloupe;95
-Guatemala;96
-Guernsey;97
-Guinea;98
-Guinea-Bissau;99
-Guyana;100
-Haiti;101
-Heard I. & McDonald Is.;102
-Honduras;103
-Hungary;104
-Iceland;105
-India;106
-Indonesia;107
-Iran;108
-Iraq;109
-Ireland;110
-Israel;111
-Italy;112
-Jamaica;113
-Jan Mayen;114
-Japan;115
-Jersey;116
-Joint development area Australia/East Timor;117
-Joint regime Colombia/Jamaica;118
-Joint regime Japan/Korea;119
-Joint regime Nigeria/Sao Tome and Principe;120
-Jordan;121
-Kazakhstan;122
-Kenya;123
-Kiribati;124
-Kuwait;125
-Kyrgyzstan;126
-Laos;127
-Latvia;128
-Lebanon;129
-Lesotho;130
-Liberia;131
-Libya;132
-Liechtenstein;133
-Lithuania;134
-Luxembourg;135
-Macedonia;136
-Madagascar;137
-Malawi;138
-Malaysia;139
-Maldives;140
-Mali;141
-Malta;142
-Marshall Is.;143
-Martinique;144
-Mauritania;145
-Mauritius;146
-Mayotte;147
-Mexico;148
-Micronesia;149
-Moldova;150
-Monaco;151
-Mongolia;152
-Montenegro;153
-Montserrat;154
-Morocco;155
-Mozambique;156
-Myanmar;157
-Namibia;158
-Nauru;159
-Nepal;160
-Netherlands;161
-Netherlands Antilles;162
-New Caledonia;163
-New Zealand;164
-Nicaragua;165
-Niger;166
-Nigeria;167
-Niue;168
-Norfolk I.;169
-North Korea;170
-Northern Marinana Islands-Guam;171
-Norway;172
-Oman;173
-Pakistan;174
-Palau;175
-Panama;176
-Papua New Guinea;177
-Paracel Islands;178
-Paraguay;179
-Peru;180
-Philippines;181
-Pitcairn Is.;182
-Poland;183
-Portugal;184
-Protected zone Australia/Papua New Guinea;185
-Puerto Rico;186
-Qatar;187
-Reunion;188
-Romania;189
-Russia;190
-Rwanda;191
-Saint Helena, Ascension en Tristan da Cunha;192
-Saint Martin;193
-Saint Vincent and the Grenadines;194
-Samoa;195
-San Marino;196
-Sao Tome & Principe;197
-Saudi Arabia;198
-Senegal;199
-Serbia;200
-Seychelles;201
-Sierra Leone;202
-Singapore;203
-Sint Maarten;204
-Slovakia;205
-Slovenia;206
-Solomon Is.;207
-Somalia;208
-South Africa;209
-South Georgia & the South Sandwich Is.;210
-South Korea;211
-South Sudan;212
-Spain;213
-Spratly Islands;214
-Sri Lanka;215
-St. Kitts & Nevis;216
-St. Lucia;217
-St. Pierre & Miquelon;218
-Sudan;219
-Suriname;220
-Svalbard;221
-Swaziland;222
-Sweden;223
-Switzerland;224
-Syria;225
-Taiwan;226
-Tajikistan;227
-Tanzania;228
-Thailand;229
-The Bahamas;230
-The Gambia;231
-Timor-Leste;232
-Togo;233
-Tokelau;234
-Tonga;235
-Trinidad & Tobago;236
-Tunisia;237
-Turkey;238
-Turkmenistan;239
-Turks & Caicos Is.;240
-Tuvalu;241
-Uganda;242
-Ukraine;243
-United Arab Emirates;244
-United Kingdom;245
-United States;246
-United States Minor Outlying Islands;247
-United States Virgin Islands;248
-Uruguay;249
-Uzbekistan;250
-Vanuatu;251
-Vatican City;252
-Venezuela;253
-Vietnam;254
-Virgin Islands, British;255
-Wallis & Futuna;256
-Western Sahara;257
-Yemen;258
-Zambia;259
-Zimbabwe;260
+-1;0
+Afghanistan;1
+Albania;2
+Algeria;3
+American Samoa;4
+Andorra;5
+Angola;6
+Anguilla;7
+Antarctica;8
+Antigua & Barbuda;9
+Area en controversia (disputed - Peruvian point of view);10
+Area of overlap Australia/Indonesia;11
+Argentina;12
+Armenia;13
+Aruba;14
+Australia;15
+Austria;16
+Azerbaijan;17
+Bahrain;18
+Bangladesh;19
+Barbados;20
+Belarus;21
+Belgium;22
+Belize;23
+Benin;24
+Bermuda;25
+Bhutan;26
+Bolivia;27
+Bonaire, Sint-Eustasius, Saba;28
+Bosnia & Herzegovina;29
+Botswana;30
+Bouvet I.;31
+Brazil;32
+British Indian Ocean Territory;33
+Brunei;34
+Bulgaria;35
+Burkina Faso;36
+Burundi;37
+Cambodia;38
+Cameroon;39
+Canada;40
+Cape Verde;41
+Cayman Is.;42
+Central African Republic;43
+Chad;44
+Chile;45
+China;46
+Christmas I.;47
+Clipperton Island;48
+Cocos Is.;49
+Colombia;50
+Comoros;51
+Conflict zone China/Japan/Taiwan;52
+Conflict zone Japan/Russia;53
+Conflict zone Japan/South Korea;54
+Congo;55
+Congo, DRC;56
+Cook Is.;57
+Costa Rica;58
+Cote d'Ivoire;59
+Croatia;60
+Cuba;61
+Curaçao;62
+Cyprus;63
+Czech Republic;64
+Denmark;65
+Disputed Barbados/Trinidad & Tobago;66
+Disputed Kenya/Somalia;67
+Disputed Western Sahara/Mauritania;68
+Djibouti;69
+Dominica;70
+Dominican Republic;71
+Ecuador;72
+Egypt;73
+El Salvador;74
+Equatorial Guinea;75
+Eritrea;76
+Estonia;77
+Ethiopia;78
+Falkland Islands;79
+Faroe Is.;80
+Fiji;81
+Finland;82
+France;83
+French Guiana;84
+French Polynesia;85
+French Southern & Antarctic Lands;86
+Gabon;87
+Gaza Strip;88
+Georgia;89
+Germany;90
+Ghana;91
+Gibraltar;92
+Greece;93
+Greenland;94
+Grenada;95
+Guadeloupe;96
+Guatemala;97
+Guernsey;98
+Guinea;99
+Guinea-Bissau;100
+Guyana;101
+Haiti;102
+Heard I. & McDonald Is.;103
+Honduras;104
+Hungary;105
+Iceland;106
+India;107
+Indonesia;108
+Iran;109
+Iraq;110
+Ireland;111
+Israel;112
+Italy;113
+Jamaica;114
+Jan Mayen;115
+Japan;116
+Jersey;117
+Joint development area Australia/East Timor;118
+Joint regime Colombia/Jamaica;119
+Joint regime Japan/Korea;120
+Joint regime Nigeria/Sao Tome and Principe;121
+Jordan;122
+Kazakhstan;123
+Kenya;124
+Kiribati;125
+Kuwait;126
+Kyrgyzstan;127
+Laos;128
+Latvia;129
+Lebanon;130
+Lesotho;131
+Liberia;132
+Libya;133
+Liechtenstein;134
+Lithuania;135
+Luxembourg;136
+Macedonia;137
+Madagascar;138
+Malawi;139
+Malaysia;140
+Maldives;141
+Mali;142
+Malta;143
+Marshall Is.;144
+Martinique;145
+Mauritania;146
+Mauritius;147
+Mayotte;148
+Mexico;149
+Micronesia;150
+Moldova;151
+Monaco;152
+Mongolia;153
+Montenegro;154
+Montserrat;155
+Morocco;156
+Mozambique;157
+Myanmar;158
+Namibia;159
+Nauru;160
+Nepal;161
+Netherlands;162
+Netherlands Antilles;163
+New Caledonia;164
+New Zealand;165
+Nicaragua;166
+Niger;167
+Nigeria;168
+Niue;169
+Norfolk I.;170
+North Korea;171
+Northern Marinana Islands-Guam;172
+Norway;173
+Oman;174
+Pakistan;175
+Palau;176
+Panama;177
+Papua New Guinea;178
+Paracel Islands;179
+Paraguay;180
+Peru;181
+Philippines;182
+Pitcairn Is.;183
+Poland;184
+Portugal;185
+Protected zone Australia/Papua New Guinea;186
+Puerto Rico;187
+Qatar;188
+Reunion;189
+Romania;190
+Russia;191
+Rwanda;192
+Saint Helena, Ascension en Tristan da Cunha;193
+Saint Martin;194
+Saint Vincent and the Grenadines;195
+Samoa;196
+San Marino;197
+Sao Tome & Principe;198
+Saudi Arabia;199
+Senegal;200
+Serbia;201
+Seychelles;202
+Sierra Leone;203
+Singapore;204
+Sint Maarten;205
+Slovakia;206
+Slovenia;207
+Solomon Is.;208
+Somalia;209
+South Africa;210
+South Georgia & the South Sandwich Is.;211
+South Korea;212
+South Sudan;213
+Spain;214
+Spratly Islands;215
+Sri Lanka;216
+St. Kitts & Nevis;217
+St. Lucia;218
+St. Pierre & Miquelon;219
+Sudan;220
+Suriname;221
+Svalbard;222
+Swaziland;223
+Sweden;224
+Switzerland;225
+Syria;226
+Taiwan;227
+Tajikistan;228
+Tanzania;229
+Thailand;230
+The Bahamas;231
+The Gambia;232
+Timor-Leste;233
+Togo;234
+Tokelau;235
+Tonga;236
+Trinidad & Tobago;237
+Tunisia;238
+Turkey;239
+Turkmenistan;240
+Turks & Caicos Is.;241
+Tuvalu;242
+Uganda;243
+Ukraine;244
+United Arab Emirates;245
+United Kingdom;246
+United States;247
+United States Minor Outlying Islands;248
+United States Virgin Islands;249
+Uruguay;250
+Uzbekistan;251
+Vanuatu;252
+Vatican City;253
+Venezuela;254
+Vietnam;255
+Virgin Islands, British;256
+Wallis & Futuna;257
+Western Sahara;258
+Yemen;259
+Zambia;260
+Zimbabwe;261

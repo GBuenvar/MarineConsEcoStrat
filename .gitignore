@@ -3,6 +3,9 @@
 # *.png
 *.zip
 *.svg
+*.err
+*.out
+
 
 # Data to ignore
 data/cellseez.csv
@@ -24,3 +27,4 @@ percolation/Strat2Eco/
 percolation/Game
 percolation/Diversity
 
+percolation/comb_prob/problemas.txt

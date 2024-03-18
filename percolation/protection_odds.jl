@@ -14,7 +14,7 @@ int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
 eez_to_iso3_data = CSV.read("data/eez_to_iso3.csv", DataFrame)
 eez_to_iso3 = Dict(zip(eez_to_iso3_data.Country, eez_to_iso3_data.ISO_3digit))
 # add High Seas
-eez_to_iso3["-1"] = "-1"
+# eez_to_iso3["-1"] = "-1"
 
 mkpath("percolation/comb_prob")
 
@@ -119,13 +119,13 @@ p1 = plot()
 p2 = plot()
 
 plot!(p1, sum([ind_protection_odds(180, n) .* sum(eezsvisited .== n) for n in 1:180]), label="<inds>")
-plot!(p1, sum([proxy_odds(180, n) .* sum(eezsvisited .== n) for n in 1:180]), label="<proxy>", c=:red)
+# plot!(p1, sum([proxy_odds(180, n) .* sum(eezsvisited .== n) for n in 1:180]), label="<proxy>", c=:red)
 
 plot(p1)
 
 plot!(p2, [ind_protection_odds(180, n)  for n in 1:180], label=nothing, c=:blue)
-plot!(p2, [proxy_odds(180, n) for n in 1:180], label=nothing, c=:red)
+# plot!(p2, [proxy_odds(180, n) for n in 1:180], label=nothing, c=:red)
 
-plot!(p2, [[],[]], label=["P^m(n)" "P^m(n) proxy"], c=[:blue :red])
+plot!(p2, [[],[]], label=["P^m(n)"], c=[:blue])
 
 plot(p1, p2)

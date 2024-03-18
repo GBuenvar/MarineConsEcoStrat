@@ -70,11 +70,10 @@ function count_and_sort(df, ord)
     df = combine(groupby(df, :EEZ), nrow)
     rename!(df, Dict(:nrow => :n_ids))
     sort!(df, :n_ids, rev = (ord == "desc"))
-    df = vcat(df[df[:, :EEZ] .== -1, :], df[df[:, :EEZ] .!= -1, :])
     return df
 end
 
-function sorted_percolation(data, ord; start_protecting=[-1], verbose=false)
+function sorted_percolation(data, ord; start_protecting=[0, 8], verbose=false)
     ids = unique(data[:, :newid])
 
     unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
@@ -120,7 +119,7 @@ end
 
 #### Strategy 2
 
-function easier_ind_protect(data; start_protecting = [-1])
+function easier_ind_protect(data; start_protecting = [0, 8])
     ids = unique(data[:, :newid])
     eezs = unique(data[:, :EEZ])
     iterated_eezs = setdiff(eezs, start_protecting)
@@ -200,7 +199,7 @@ function compute_eez_payoff(pairs, id_weights)
     return eezs_payoffs
 end
 
-function run_game(data; start_protecting = [-1], α=1, order="higher")
+function run_game(data; start_protecting = [0,8], α=1, order="higher")
     ids = unique(data[:, :newid])
     eezs = unique(data[:, :EEZ])
     iterated_eezs = setdiff(eezs, start_protecting)
@@ -260,7 +259,7 @@ end
 
 
 
-function run_game_incentives(data; start_protecting = [-1], α=1, operation = /)
+function run_game_incentives(data; start_protecting = [0,8], α=1, operation = /)
     ids = unique(data[:, :newid])
     eezs = unique(data[:, :EEZ])
     iterated_eezs = setdiff(eezs, start_protecting)
@@ -335,14 +334,14 @@ end
 
 ## Random percolation
 
-function random_perc_1_rep(data; rng = MersenneTwister(1234), newids = unique(data[:, :newid]), eezlist = unique(data[:, :EEZ]))
+function random_perc_1_rep(data; start_protecting = [0, 8], rng = MersenneTwister(1234), newids = unique(data[:, :newid]), eezlist = unique(data[:, :EEZ]))
 
     unprotected_ids  = unique(data[:, :newid])
     prot_times  = zeros(Int64, length(newids))
     prot_number = zeros(Int64, length(eezlist))
 
-    # High Seas is protected from the beginning
-    data = data[data[:, :EEZ] .!= -1, :] # protect High Seas
+    # Protect the first EEZs
+    data = data[.!(data[:, :EEZ] .∈ (start_protecting, )), :] # protect the EEZ
     new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
     new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
     if length(new_protected_ids) > 0
@@ -351,7 +350,7 @@ function random_perc_1_rep(data; rng = MersenneTwister(1234), newids = unique(da
         prot_times[newids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
     end
     unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
-    random_eezlist = shuffle(rng, eezlist[eezlist .!= -1])
+    random_eezlist = shuffle(rng, eezlist[eezlist .!= 0])
     @views for (t, eez) in enumerate(random_eezlist)
         data = data[data[:, :EEZ] .!= eez, :]    # protect a new EEZ
         new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
@@ -370,14 +369,14 @@ end
 
 ##
 # create a function that calls to the previous function n times, saves the results as Vector{Vector{Int64}} and returns the median of the number of protected individuals at each time
-function random_perc(data, n; seed = 1234)
+function random_perc(data, n; start_protecting = [0, 8], seed = 1234)
     rng = MersenneTwister(seed)
     newids = unique(data[:, :newid])
     eezlist = unique(data[:, :EEZ])
     prot_times = zeros(Int64, (n, length(newids)))
     prot_number = zeros(Int64, (n, length(eezlist)))
     for i in 1:n
-        prot_times[i, :], prot_number[i, :] = random_perc_1_rep(data; rng = rng, newids = newids, eezlist = eezlist)
+        prot_times[i, :], prot_number[i, :] = random_perc_1_rep(data; start_protecting= start_protecting, rng = rng, newids = newids, eezlist = eezlist)
     end   
     return prot_times, prot_number
 end
@@ -418,9 +417,8 @@ end
 
 
 
-function run_diversity(data; start_protecting = [-1], α=1., q=1.)
+function run_diversity(data; start_protecting = [0, 8], α=1., q=1.)
 
-    # 
     ids = unique(data[:, :newid])
     eezs = unique(data[:, :EEZ])
     iterated_eezs = setdiff(eezs, start_protecting)

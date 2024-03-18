@@ -24,7 +24,7 @@ n = p["nrep"]
 seed = p["seed"]
 threshold = p["threshold"]
 
-
+##
 
 # Read the codes dictionaries of the species and the eezs
 eez_codes = CSV.read("data/eez_to_int.csv", DataFrame)
@@ -37,8 +37,6 @@ int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
 # read the eez_to_iso3 file
 eez_to_iso3_data = CSV.read("data/eez_to_iso3.csv", DataFrame)
 eez_to_iso3 = Dict(zip(eez_to_iso3_data.Country, eez_to_iso3_data.ISO_3digit))
-# add High Seas
-eez_to_iso3["-1"] = "-1"
 # read the economic data
 economic_data = DataFrame(XLSX.readtable("data/CLASS.xlsx", "List of economies"))
 
@@ -78,7 +76,7 @@ median_protected_number = @time median_protected(protected_number)
 
 
 ##
-p_inds = plot_trajectories_median(protected_number, median_protected_number, N; xlabel = "# EEZs protected", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_ids")
+p_inds = plot_trajectories_median(protected_number, median_protected_number, N; xlabel = "protecting EEZs", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_ids")
 # save outputs in compressed files
 CSV.write("percolation/random/protected_times.csv.gz", DataFrame(protected_times, :auto))
 CSV.write("percolation/random/protected_number.csv.gz", DataFrame(protected_number, :auto))

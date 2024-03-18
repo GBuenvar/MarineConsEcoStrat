@@ -22,8 +22,6 @@ int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
 # read the eez_to_iso3 file
 eez_to_iso3_data = CSV.read("data/eez_to_iso3.csv", DataFrame)
 eez_to_iso3 = Dict(zip(eez_to_iso3_data.Country, eez_to_iso3_data.ISO_3digit))
-# add High Seas
-eez_to_iso3["-1"] = "-1"
 mkpath("percolation/Strat1")
 
 ##
@@ -49,7 +47,7 @@ CSV.write("percolation/Strat1/protected_species_times_asc.csv.gz", DataFrame(pro
 CSV.write("percolation/Strat1/protected_species_number_asc.csv.gz", DataFrame(prot_species_number=prot_species_number))
 println("files saved at percolation/Strat1")
 
-p1 = plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected")
+p1 = plot(xlabel = "cooperating EEZs", ylabel = "Fraction of protected")
 title!("Descending order")
 plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
 plot!(p1, cumsum(prot_species_number)./N_species, label="species (50% of individuals)", color = "red")
@@ -69,7 +67,7 @@ CSV.write("percolation/Strat1/protected_species_times_desc.csv.gz", DataFrame(pr
 CSV.write("percolation/Strat1/protected_species_number_desc.csv.gz", DataFrame(prot_species_number=prot_species_number))
 println("files saved at percolation/Strat1")
 
-p2 = plot(xlabel = "# EEZs protected", ylabel = "Fraction of protected")
+p2 = plot(xlabel = "cooperating EEZs", ylabel = "Fraction of protected")
 title!("Ascending order")
 plot!(p2, cumsum(protected_number)./ N, label="individuals", color = "black")
 plot!(p2, cumsum(prot_species_number)./N_species, label="species (50% of individuals)", color = "red")

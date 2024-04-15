@@ -53,41 +53,41 @@ iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs];
 ##
 
 
-# Each individual i visits a number of EEZs n_i. The probability of haunting that 
+# Each individual i visits a number of EEZs n_i. The probability of hunting that 
 # animal is uniformly distributed among the visited EEZs. The EEZ that succeeds in
-# haunting gets a reward of 1. 
+# hunting gets a reward of 1. 
 
-# For a EEZ that is visited by N_a animals, the probability of haunting all the animals
+# For a EEZ that is visited by N_a animals, the probability of hunting all the animals
 # gets a reward of N_a is
 
 # P(N_a) = \prod_{i=1}^{N_a} p_i <= 1
 
-# where p_i is the probability of haunting the i-th animal.
+# where p_i is the probability of hunting the i-th animal.
 
 # Then, if it is proposed to conserve in exchange of a reward N_a, it should accept
 # since it is the maximum reward that it can get.
 
 # However, if the reward is r<N_a, then the EEZ will accept the proposal deppending
-# on the probability of obtaining the reward r or more if it continues haunting.
+# on the probability of obtaining the reward r or more if it continues hunting.
 
 # To compute this probability, we have to compute the number of situations in which
 # the reward is r or more and divide it by the total number of situations.
 
-# the probability of haunting none is:
+# the probability of hunting none is:
 
 # P(0) = \prod_{i=1}^{N_a} (1-p_i)
 
-# the probability of haunting one is:
+# the probability of hunting one is:
 
 # P(1) = \sum_{i=1}^{N_a} p_i \prod_{j=1, j\neq i}^{N_a} (1-p_j)
 
-# the probability of haunting two is:
+# the probability of hunting two is:
 
 # P(2) = \sum_{i=1}^{N_a} \sum_{j=i+1}^{N_a} p_i p_j \prod_{k=1, k\neq i, k\neq j}^{N_a} (1-p_k)
 
 # and so on.
 
-# The probability of haunting r is:
+# The probability of hunting r is:
 
 # P(r) = \sum_{i_1=1}^{N_a} \sum_{i_2=i_1+1}^{N_a} ... \sum_{i_r=i_{r-1}+1}^{N_a} p_{i_1} p_{i_2} ... p_{i_r} \prod_{j=1, j\neq i_1, j\neq i_2, ..., j\neq i_r}^{N_a} (1-p_j)
 
@@ -96,10 +96,10 @@ iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs];
 # a reward r or more.
 
 # For this, each situation is encoded as a binary number of N_a bits, where 1 means that
-# the animal is haunted and 0 means that it is not haunted. 
+# the animal is hunted and 0 means that it is not hunted. 
 
-# The vector P is the vector of probabilities of haunting each animal, and Ϙ
-# is the vector of the probability of not haunting each animal (1.-P).
+# The vector P is the vector of probabilities of hunting each animal, and Ϙ
+# is the vector of the probability of not hunting each animal (1.-P).
 
 # we compute all the possible combinations of 1s and 0s of length N_a, and then we
 # compute the probability of each combination.
@@ -150,7 +150,7 @@ function possible_outcomes(data, eezs, neez)
     nn = 0
     while nii < N_a # all situations except all 1s
 
-        nii = count(situation) # number of individuals haunted
+        nii = count(situation) # number of individuals hunted
         prob_situation = prod(P[situation]) * prod(Ϙ[.!situation])
         probs_N[nii + 1] += prob_situation
         situation = bitwise_sum(situation) # next situation
@@ -176,10 +176,10 @@ end
 # @time p = possible_outcomes(agg_data, eezs, neez)
 ##
 """
-    N_haunting_events(newid::Int64, data::DataFrame; rng=Xoshiro(newid), nreps::Int64=1000)::Vector{Int64}
+    N_hunting_events(newid::Int64, data::DataFrame; rng=Xoshiro(newid), nreps::Int64=1000)::Vector{Int64}
 
-Compute `nrep` haunting events for the individual `newid`. The haunting events considers
-that all the EEZs visited by the individual have the same probability of haunting it.
+Compute `nrep` hunting events for the individual `newid`. The hunting events considers
+that all the EEZs visited by the individual have the same probability of hunting it.
 
 # Arguments
 - `newid::Int64`: the id of the individual
@@ -190,7 +190,7 @@ that all the EEZs visited by the individual have the same probability of hauntin
     to use the Xoshiro generator with the seed equal to the `newid`.
 - `nreps::Int64=1000`: the number of repetitions to compute.
 """
-function N_haunting_events(newid::Int64, data::DataFrame; rng=Xoshiro(newid), nreps::Int64=1000)::Vector{Int64}
+function N_hunting_events(newid::Int64, data::DataFrame; rng=Xoshiro(newid), nreps::Int64=1000)::Vector{Int64}
     eez_i = data[data.newid .== newid, :EEZ]
     return rand(rng, eez_i, nreps)
 end
@@ -199,24 +199,24 @@ end
 """
     succesfull_histogram(events, eezs, N_as)::Matrix{Float64}
 
-Compute the histogram of the number of successful haunting events for each EEZ.
+Compute the histogram of the number of successful hunting events for each EEZ.
 
 # Arguments
 - `events::Matrix{Int64}`: a matrix of size `N x nreps` where `N` is the number of
     individuals and `nreps` is the number of repetitions. Each column `i` contains the
-    number of haunting events for the individual `i`.
+    number of hunting events for the individual `i`.
 - `eezs::Vector{Int64}`: the vector of the EEZs.
 - `N_as::Vector{Int64}`: the vector of the number of animals visiting each EEZ.
 
 # Returns
 - `probs_N::Matrix{Float64}`: a matrix of size `max(N_as) x length(eezs)` where each
-    column `i` contains the probability of getting 'x' successful haunting events for
+    column `i` contains the probability of getting 'x' successful hunting events for
     the EEZ `i`.
 """
 function succesfull_histogram(events, eezs, N_as)
-    max_haunting = maximum(N_as)
+    max_hunting = maximum(N_as)
     nreps = size(events, 2)
-    probs_N = zeros(Float64, max_haunting + 1, length(eezs))
+    probs_N = zeros(Float64, max_hunting + 1, length(eezs))
     @views for (i, eez) in enumerate(eezs)
         # count the number of success at each repetition
         success = [count(events[:, i] .== eez) for i in 1:nreps]
@@ -230,7 +230,7 @@ end
 """
     stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000)
 
-Compute the stochastic outcomes of the haunting events for each EEZ.
+Compute the stochastic outcomes of the hunting events for each EEZ.
 
 # Arguments
 - `agg_data::DataFrame`: any dataframe that contains the columns `newid` and `EEZ`, with
@@ -240,34 +240,34 @@ Compute the stochastic outcomes of the haunting events for each EEZ.
 
 # Returns
 - `probs_N::Matrix{Float64}`: a matrix of size `max(N_as) x length(eezs)` where each
-    column `i` contains the probability of getting 'x' successful haunting events for
+    column `i` contains the probability of getting 'x' successful hunting events for
     the EEZ `i`.
 - `cum_p::Matrix{Float64}`: a matrix of size `max(N_as) x length(eezs)` where each
     column `i` contains the cumulative probability of getting 'x' or more successful
-    haunting events for the EEZ `i`.
+    hunting events for the EEZ `i`.
 """
 function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000)
     eezs = unique(agg_data[:, :EEZ])
     newids = unique(agg_data[:, :newid])
     N_as = [count(agg_data.EEZ .== eez) for eez in eezs] # number of animals visiting each eez
 
-    # 1- Compute nreps haunting events for each newid, 
-    println("Computing haunting events")
+    # 1- Compute nreps hunting events for each newid, 
+    println("Computing hunting events")
     events = zeros(Int64, length(newids), nreps)
     @views for (i, id) in enumerate(newids)
-        events[i, :] = N_haunting_events(id, agg_data, nreps=nreps)
+        events[i, :] = N_hunting_events(id, agg_data, nreps=nreps)
     end
 
-    # 2- Compute the number of successful haunting events for each eez
-    println("Computing successful haunting events")
+    # 2- Compute the number of successful hunting events for each eez
+    println("Computing successful hunting events")
     probs_N = succesfull_histogram(events, eezs, N_as)
     cum_p =  1. .- cumsum(probs_N, dims=1)
 
     # 3- plot the results and save the figure
     println("Plotting the results")
     sort_idx = sortperm(N_as, rev=true) # sort the eezs by the number of animals visiting them
-    p1 = plot(labels = false, title="prob of haunting r or more", xlabel="r/r_max", ylabel="P(X>r)", palette=:batlow, dpi=300)
-    p2 = plot(labels = false, title="prob of haunting r", xlabel="r/r_max", ylabel="P(X=r)", palette=:batlow, dpi=300)
+    p1 = plot(labels = false, title="prob of hunting r or more", xlabel="r/r_max", ylabel="P(X>r)", palette=:batlow, dpi=300)
+    p2 = plot(labels = false, title="prob of hunting r", xlabel="r/r_max", ylabel="P(X=r)", palette=:batlow, dpi=300)
     for i in sort_idx
         p_i = probs_N[:, i]
         cum_p_i = cum_p[:, i]
@@ -283,8 +283,8 @@ function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000)
     end
     p3 = plot(p2,p1, size=(1200, 400), leftmargin=25Plots.px, bottommargin=20Plots.px, legend=false, dpi=300)
     println("done!")
-    savefig(p3, "percolation/comb_prob/haunting_probability.pdf")
-    savefig(p3, "percolation/comb_prob/haunting_probability.png")
+    savefig(p3, "percolation/comb_prob/hunting_probability.pdf")
+    savefig(p3, "percolation/comb_prob/hunting_probability.png")
     return probs_N, cum_p, p3
 end
 

@@ -13,8 +13,16 @@ s = ArgParseSettings()
         arg_type = Int64
     "--saving", "-s"
         help = "save the results to a file"
+        default = true
+        arg_type = Bool
+    "--plotting_mode", "-p"
+        help = "only plot the results, need previous results"
         default = false
         arg_type = Bool
+    "--results_folder", "-r"
+        help = "folder where the results are stored"
+        default = "percolation/comb_prob/"
+        arg_type = String
 end
 
 p = parse_args(ARGS, s)
@@ -246,7 +254,7 @@ Compute the stochastic outcomes of the hunting events for each EEZ.
     column `i` contains the cumulative probability of getting 'x' or more successful
     hunting events for the EEZ `i`.
 """
-function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000)
+function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000, saving::Bool=false, dest::String="path/to/folder/")
     eezs = unique(agg_data[:, :EEZ])
     newids = unique(agg_data[:, :newid])
     N_as = [count(agg_data.EEZ .== eez) for eez in eezs] # number of animals visiting each eez
@@ -263,11 +271,58 @@ function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000)
     probs_N = succesfull_histogram(events, eezs, N_as)
     cum_p =  1. .- cumsum(probs_N, dims=1)
 
-    # 3- plot the results and save the figure
-    println("Plotting the results")
-    sort_idx = sortperm(N_as, rev=true) # sort the eezs by the number of animals visiting them
-    p1 = plot(labels = false, title="prob of hunting r or more", xlabel="r/r_max", ylabel="P(X>r)", palette=:batlow, dpi=300)
-    p2 = plot(labels = false, title="prob of hunting r", xlabel="r/r_max", ylabel="P(X=r)", palette=:batlow, dpi=300)
+    if saving
+        println("Saving the results on $dest")
+        if !isdir(dest)
+            mkpath(dest)
+        end
+        if dest[end] != '/'
+            dest *= "/"
+        end
+        # save the probabilities to a file
+        open(dest * "probs.csv", "w") do f
+            write(f, "EEZ, $(join(["$i" for i in 0:maximum(N_as)], ", "))\n")
+            for (i, eez) in enumerate(eezs)
+                write(f, "$eez, $(join(probs_N[:, i], ", "))\n")
+            end
+        end
+        open(dest * "cum_probs.csv", "w") do f
+            write(f, "EEZ, $(join(["$i" for i in 0:maximum(N_as)], ", "))\n")
+            for (i, eez) in enumerate(eezs)
+                write(f, "$eez, $(join(cum_p[:, i], ", "))\n")
+            end
+        end
+    end
+
+    # 3- plot the results
+
+    plot_hunt_probs(probs_N, cum_p, N_as)
+ 
+    return probs_N, cum_p
+end
+
+
+function plot_hunt_probs(probs_N, cum_p, N_as)
+    # sort the eezs by the number of animals visiting them
+    sort_idx = sortperm(N_as, rev=true) 
+    p1 = plot(
+        labels = false,
+        xlabel="r/r_max",
+        ylabel="P(X>r)",
+        palette=:batlow,
+        dpi=300,
+        ylims=(0, 1),
+        xlims=(0, 1),
+        tickfontsize=12)
+    p2 = plot(
+        labels = false,
+        xlabel="r/r_max",
+        ylabel="P(X=r)",
+        palette=:batlow,
+        dpi=300,
+        ylims=(0, 1),
+        xlims=(0, 1),
+        tickfontsize=12)
     for i in sort_idx
         p_i = probs_N[:, i]
         cum_p_i = cum_p[:, i]
@@ -281,13 +336,39 @@ function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000)
         plot!(p2, x, p_i, labels=false)
         plot!(p1, x, cum_p_i, labels=false)
     end
-    p3 = plot(p2,p1, size=(1200, 400), leftmargin=25Plots.px, bottommargin=20Plots.px, legend=false, dpi=300)
+    # write subplot lables A and B in the top left corner out of the plot
+    annotate!(p1, [(0.05, 0.95, text("B", 20, :black))])
+    annotate!(p2, [(0.05, 0.95, text("A", 20, :black))])
+
+    p3 = plot(
+        p2,
+        p1,
+        size=(1200, 400),
+        leftmargin=25Plots.px,
+        bottommargin=20Plots.px,
+        legend=false,
+        dpi=300)
+    
+    
     println("done!")
     savefig(p3, "percolation/comb_prob/hunting_probability.pdf")
     savefig(p3, "percolation/comb_prob/hunting_probability.png")
-    return probs_N, cum_p, p3
+
 end
 
-@time p, cum_p, p3 = stochastic_outcomes(agg_data, nreps=nreps)
+if p["plotting_mode"]
+    println("Running in plotting mode")
+    probs_N = CSV.read(p["results_folder"] * "probs.csv", DataFrame)
+    print(probs_N)
+    cum_p = CSV.read(p["results_folder"] * "cum_probs.csv", DataFrame)
+    eezs = unique(agg_data[:, :EEZ])
+    newids = unique(agg_data[:, :newid])
+    N_as = [count(agg_data.EEZ .== eez) for eez in eezs] # number of animals visiting each eez
+    plot_hunt_probs(Matrix(probs_N[:, 2:end]), Matrix(cum_p[:, 2:end]), N_as)
+else
+    @time p, cum_p = stochastic_outcomes(agg_data, nreps=nreps, saving=saving, dest="percolation/comb_prob/")
+end
+
+
 
 ##

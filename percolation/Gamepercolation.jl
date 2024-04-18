@@ -40,7 +40,6 @@ eezs = unique(agg_data[:, :EEZ])
 iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs];
 
 
-
 ##
 # Write three functions to make the plots p1, pcost and p3
 

@@ -29,7 +29,8 @@ p = parse_args(ARGS, s)
 
 nreps = p["nreps"]
 saving = p["saving"]
-
+plotting_mode = p["plotting_mode"]
+results_folder = p["results_folder"]
 ##
 # Read the codes dictionaries of the species and the eezs
 eez_codes = CSV.read("data/eez_to_int.csv", DataFrame)
@@ -225,15 +226,14 @@ function succesfull_histogram(events, eezs, N_as)
     max_hunting = maximum(N_as)
     nreps = size(events, 2)
     probs_N = zeros(Float64, max_hunting + 1, length(eezs))
-    @views for (i, eez) in enumerate(eezs)
+    @views for (i, (eez, n_as)) in enumerate(zip(eezs, N_as))
         # count the number of success at each repetition
-        success = [count(events[:, i] .== eez) for i in 1:nreps]
-        prob_n = [count(success .== j) for j in 0:N_as[i]] 
-        probs_N[1:length(prob_n), i] = prob_n
+        success = [@views count(events[:, i] .== eez) for i in 1:nreps]
+        probs_N[1:(n_as+1), i] =
+         [@views count(success .== j) for j in 0:n_as] 
     end 
     return probs_N ./ nreps
 end
-
 
 """
     stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000)
@@ -254,7 +254,10 @@ Compute the stochastic outcomes of the hunting events for each EEZ.
     column `i` contains the cumulative probability of getting 'x' or more successful
     hunting events for the EEZ `i`.
 """
-function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000, saving::Bool=false, dest::String="path/to/folder/")
+function stochastic_outcomes(agg_data::DataFrame;
+                             nreps::Int64=1000,
+                             saving::Bool=false,
+                             dest::String="path/to/folder/")
     eezs = unique(agg_data[:, :EEZ])
     newids = unique(agg_data[:, :newid])
     N_as = [count(agg_data.EEZ .== eez) for eez in eezs] # number of animals visiting each eez
@@ -262,12 +265,12 @@ function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000, saving::Boo
     # 1- Compute nreps hunting events for each newid, 
     println("Computing hunting events")
     events = zeros(Int64, length(newids), nreps)
-    @views for (i, id) in enumerate(newids)
-        events[i, :] = N_hunting_events(id, agg_data, nreps=nreps)
+    @views for (i, newid) in enumerate(newids)
+        events[i, :] = N_hunting_events(newid, agg_data, nreps=nreps)
     end
-
+    
     # 2- Compute the number of successful hunting events for each eez
-    println("Computing successful hunting events")
+    println("Computing hunting probabilities")
     probs_N = succesfull_histogram(events, eezs, N_as)
     cum_p =  1. .- cumsum(probs_N, dims=1)
 
@@ -279,23 +282,12 @@ function stochastic_outcomes(agg_data::DataFrame; nreps::Int64=1000, saving::Boo
         if dest[end] != '/'
             dest *= "/"
         end
-        # save the probabilities to a file
-        open(dest * "probs.csv", "w") do f
-            write(f, "EEZ, $(join(["$i" for i in 0:maximum(N_as)], ", "))\n")
-            for (i, eez) in enumerate(eezs)
-                write(f, "$eez, $(join(probs_N[:, i], ", "))\n")
-            end
-        end
-        open(dest * "cum_probs.csv", "w") do f
-            write(f, "EEZ, $(join(["$i" for i in 0:maximum(N_as)], ", "))\n")
-            for (i, eez) in enumerate(eezs)
-                write(f, "$eez, $(join(cum_p[:, i], ", "))\n")
-            end
-        end
+        # Save the results usng CSV
+        CSV.write(dest * "probs.csv", DataFrame(probs_N, :auto))
+        CSV.write(dest * "cum_probs.csv", DataFrame(cum_p, :auto))
     end
 
     # 3- plot the results
-
     plot_hunt_probs(probs_N, cum_p, N_as)
  
     return probs_N, cum_p
@@ -324,13 +316,13 @@ function plot_hunt_probs(probs_N, cum_p, N_as)
         xlims=(0, 1),
         tickfontsize=12)
     for i in sort_idx
-        p_i = probs_N[:, i]
-        cum_p_i = cum_p[:, i]
+        p_i = @view probs_N[:, i]
+        cum_p_i = @view cum_p[:, i]
         x = collect(0:(length(p_i)-1))./ length(p_i)
         if any((1. .- cum_p_i) .>= 1.)
             idx = findfirst((1. .- cum_p_i) .>= 1.)
-            p_i = p_i[1:idx]
-            cum_p_i = cum_p_i[1:idx]
+            p_i = @view p_i[1:idx]
+            cum_p_i = @view cum_p_i[1:idx]
             x = collect(0:(idx-1))./idx
         end
         plot!(p2, x, p_i, labels=false)
@@ -349,26 +341,25 @@ function plot_hunt_probs(probs_N, cum_p, N_as)
         legend=false,
         dpi=300)
     
-    
     println("done!")
     savefig(p3, "percolation/comb_prob/hunting_probability.pdf")
     savefig(p3, "percolation/comb_prob/hunting_probability.png")
 
 end
 
-if p["plotting_mode"]
-    println("Running in plotting mode")
-    probs_N = CSV.read(p["results_folder"] * "probs.csv", DataFrame)
-    print(probs_N)
-    cum_p = CSV.read(p["results_folder"] * "cum_probs.csv", DataFrame)
+##
+if plotting_mode
+    # read the files as Matrix
+    probs_N = CSV.read("percolation/comb_prob/probs.csv", DataFrame)
+    cum_p = CSV.read("percolation/comb_prob/cum_probs.csv", DataFrame)
+    probs_N = Matrix(probs_N)
+    cum_p = Matrix(cum_p)
     eezs = unique(agg_data[:, :EEZ])
     newids = unique(agg_data[:, :newid])
     N_as = [count(agg_data.EEZ .== eez) for eez in eezs] # number of animals visiting each eez
-    plot_hunt_probs(Matrix(probs_N[:, 2:end]), Matrix(cum_p[:, 2:end]), N_as)
+    plot_hunt_probs(probs_N, cum_p, N_as)
 else
     @time p, cum_p = stochastic_outcomes(agg_data, nreps=nreps, saving=saving, dest="percolation/comb_prob/")
 end
 
 
-
-##

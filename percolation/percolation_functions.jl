@@ -1,7 +1,14 @@
 using CSV, DataFrames, Random, Statistics, Plots, XLSX
 
 
-function Rich_Poor_lists(eezlist, iso3_eez_list, income_data)
+"""
+    Rich_Poor_lists(eezlist, iso3_eez_list, income_data)
+
+Compute the list of rich and poor EEZs based on the income data. 
+The income data is a DataFrame with the columns "Code" and "Income group".
+The function returns two lists, one with the rich EEZs and the other with the poor EEZs.
+"""
+function Rich_Poor_lists(eezlist, iso3_eez_list, income_data)::Tuple{Vector{Int64}, Vector{Int64}}
     Rich = Vector{Int64}(undef, 0)
     for (eez, iso3) in zip(eezlist, iso3_eez_list)
         if in(iso3, income_data[:, :Code])
@@ -19,30 +26,78 @@ function Rich_Poor_lists(eezlist, iso3_eez_list, income_data)
     return Rich, Poor
 end
 
-function protected_species(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
+
+"""
+    protected_species(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
+
+Compute the number of individuals and species protected at each time step.
+The function returns two vectors, one with the number of individuals protected at each time step, and the other with the time at which each species is protected.
+
+
+# Arguments
+- prot_number::Vector{Int64}: Number of individuals protected at each time step. The length
+    of the vector is the number of time steps
+- prot_times::Vector{Int64}: Time at which each individual is protected. The length of the vector
+    is the number of individuals. If the individual is not protected, the time is set 
+    to the length of the prot_number vector plus one.
+- dict_id_species::Dict{Int64, String}: Dictionary with the species of each individual
+- newids::Vector{Int64}: List of the individuals
+- threshold::Float64: Fraction of individuals of a species that need to be protected
+
+# Returns
+- prot_species_number::Vector{Int64}: Number of species protected at each time step. 
+    The length of the vector is the number of time steps
+- prot_species_times::Vector{Int64}: Time at which each species is protected. 
+    If the species is not protected, the time is set to the length of the 
+    prot_number vector plus one.
+    """
+function protected_species(
+    prot_number, prot_times,
+    dict_id_species,
+    newids;
+    threshold = 0.5
+    )
     species = [dict_id_species[id] for id in newids]
     unique_species = unique(species)
-    threshold_species = [Int64(floor(threshold * sum(species .== sp))) for sp in unique_species]
-
+    threshold_species = [
+        Int64(floor(threshold * sum(species .== sp)))
+        for sp in unique_species
+            ]
+    t_non_protected = length(prot_number) + 1
+    
+    # Initialize the variables with no species protected
     prot_species_number = zeros(Int64, size(prot_number))
-    prot_species_times  = zeros(Int64, length(unique_species))
+    prot_species_times  = fill(
+        maximum(prot_number),
+        length(unique_species)
+        )
     for (sp_idx, sp) in enumerate(unique_species) # for each species 
         sp_times = prot_times[species .== sp] 
         sp_threshold = threshold_species[sp_idx]
-        n_prot_sp = 0
-        t_prot = 0
-        n_prot_sp = sum(sp_times .<= t_prot)
-        while (n_prot_sp < sp_threshold) || (n_prot_sp == 0)
-            t_prot += 1
-            n_prot_sp = sum(sp_times .<= t_prot)
+        unique_sp_times = sort(unique(sp_times))
+        sp_times_count = cumsum([count(==(i), sp_times) for i in unique_sp_times])
+        t_prot = unique_sp_times[findfirst(>=(sp_threshold), sp_times_count)]
+        if (t_prot != nothing) && (t_prot < t_non_protected)
+            prot_species_times[sp_idx] = t_prot
+            prot_species_number[t_prot] += 1
         end
-        prot_species_times[sp_idx] = t_prot
-        prot_species_number[t_prot+1] += 1
     end
     return prot_species_number, prot_species_times
 end
 
-function compute_neighbors(data)
+"""
+    compute_neighbors(data)
+
+Compute the neighbors of each EEZ. The function returns 
+a dictionary with the EEZs as keys and the neighbors as values.
+
+# Arguments
+- data::DataFrame: DataFrame with the columns "newid" and "EEZ"
+
+# Returns
+- eez_neighbors::Dict{Int64, Set{Int64}}: Dictionary with the EEZs as keys and the neighbors as values
+"""
+function compute_neighbors(data::DataFrame)
     pairs = data[:, ["newid", "EEZ"]]
     unique_pairs = unique(pairs)
     eez_neighbors = Dict()

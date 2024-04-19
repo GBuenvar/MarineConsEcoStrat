@@ -112,7 +112,7 @@ function compute_cooperating_probability(cumulative_prob::Matrix{Float64}, incen
     return eezs_coop_odds
 end
 
-function incetives_game(data, prob; start_protecting = [0,8], α=0, order="higher", cooperating_threshold_p = 0.5)
+function incetives_game(data, prob; start_protecting = [0,8], α=0, order="higher", cooperating_threshold_p = 0.5, tie_mode::Int=0)
     ids::Vector{Int64} = unique(data[:, :newid])
     eezs::Vector{Int64} = unique(data[:, :EEZ])
     iterated_eezs::Vector{Int64} = setdiff(eezs, start_protecting)
@@ -142,7 +142,8 @@ function incetives_game(data, prob; start_protecting = [0,8], α=0, order="highe
     end
     unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
     unprotected_eezs = copy(iterated_eezs)
-    for ii in 2:Neez+1
+    ii = 2 
+    while ii <Neez+1
         unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
         unprotected_eezs = unique(unique_pairs[:, :EEZ])
         unprotected_prob = prob[:, eezs .∈ (unprotected_eezs, )]
@@ -176,24 +177,33 @@ function incetives_game(data, prob; start_protecting = [0,8], α=0, order="highe
         end
         if all(!, willing_to_cooperate)
             println("All the probabilities are below the threshold, 
-            stopping the game at iteration $ii.")
-            println(eezs_incentives)
-            println(eezs_coop_odds)
-            println(unprotected_eezs)
+            stopping the game after protecting $ii zones.")
             break
         end
 
         # 5- Protect that EEZ
-        eezs_incentives = eezs_incentives[willing_to_cooperate]  
-        if order == "higher"
-            arg = argmax(eezs_incentives)
-        elseif order == "lower"
-            arg = argmin(eezs_incentives)
-        end
-        protect_eez = unprotected_eezs[willing_to_cooperate][arg]
-        push!(prot_eezs, protect_eez)
-        prot_cost[ii] = eezs_incentives[arg]
+        if tie_mode == 0
+            # The EEZ with the highest incentive is protected
+            eezs_incentives = eezs_incentives[willing_to_cooperate]  
+            if order == "higher"
+                arg = argmax(eezs_incentives)
+            elseif order == "lower"
+                arg = argmin(eezs_incentives)
+            end
+            protect_eez = unprotected_eezs[willing_to_cooperate][arg]
+            push!(prot_eezs, protect_eez)
+            prot_cost[ii] = eezs_incentives[arg]
+            n_prot = 1
 
+        elseif tie_mode == 1
+            # In case of a tie, protect all the EEZs with the same 
+            # cooperating probability 
+            eezs_incentives = eezs_incentives[willing_to_cooperate]  
+            protect_eez = unprotected_eezs[willing_to_cooperate]
+            n_prot = length(protect_eez)
+            prot_eezs = vcat(prot_eezs, protect_eez)
+            prot_cost[ii] = sum(eezs_incentives)
+        end
         open("percolation/Game_EEZSwilling_to_cooperate.csv", "a") do io
             sss = join(string.(unprotected_eezs[willing_to_cooperate]), ",")*":$protect_eez"*"\n"
             write(io,sss)
@@ -201,7 +211,7 @@ function incetives_game(data, prob; start_protecting = [0,8], α=0, order="highe
 
 
         # Update the lists of protected and unprotected individuals
-        data = data[data[:, :EEZ] .!= protect_eez, :]        
+        data = data[data[:, :EEZ] .∉ (protect_eez, ), :]        
         new_unprotected_ids = unique(data[:, :newid])
         new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
 
@@ -210,6 +220,7 @@ function incetives_game(data, prob; start_protecting = [0,8], α=0, order="highe
             prot_times[ids .∈ (new_protected_ids,)] .= ii-1 # add the time at which they were protected
         end
         unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
+        ii += n_prot
 
     end
     return prot_times, prot_number, prot_cost, prot_eezs
@@ -284,7 +295,8 @@ protected_times, protected_number, protected_cost, protected_eezs =
     start_protecting = rich,
     α=α,
     order="higher",
-    cooperating_threshold_p = 0.5)
+    cooperating_threshold_p = 0.5,
+    tie_mode = 0)
     
 protected_species_number, protected_species_times =
  protected_species(
@@ -295,12 +307,19 @@ protected_species_number, protected_species_times =
 println("Total cost: ", sum(protected_cost))
 println("Initially $(protected_species_number[1]) of the $(N_species) species are protected with $(protected_number[1]) individuals")
 println("At the end $(sum(protected_species_number[1:end])) of the $(N_species) species are protected with $(sum(protected_number[1:end])) individuals")
+
+CSV.write("percolation/Game/protected_times_alpha_$α.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/Game/protected_number_alpha_$α.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/Game/protected_species_times_alpha_$α.csv.gz", DataFrame(prot_species_times=protected_species_times))
+CSV.write("percolation/Game/protected_species_number_alpha_$α.csv.gz", DataFrame(prot_species_number=protected_species_number))
+println("files saved at percolation/Game")
+
 ##
 p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Game dynamics (a=$α)", savename = "game_dynamics_a_$(α)")
 pcost = plot_protection_cost(protected_cost, "Game dynamics (a=$α)", savename = "game_dynamics_a_$(α)")
 p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Game dynamics (a=$α)", savename = "game_dynamics_cost_a_$(α)")
 plot(p1,pcost,p3)
-plot(p1)
+# plot(p1)
 
 
 
@@ -313,7 +332,8 @@ protected_times, protected_number, protected_cost, protected_eezs =
     start_protecting = rich,
     α=α,
     order="higher",
-    cooperating_threshold_p = 0.5)
+    cooperating_threshold_p = 0.5,
+    tie_mode = 0)
     
 protected_species_number, protected_species_times =
  protected_species(
@@ -324,12 +344,18 @@ protected_species_number, protected_species_times =
 println("Total cost: ", sum(protected_cost))
 println("Initially $(protected_species_number[1]) of the $(N_species) species are protected with $(protected_number[1]) individuals")
 println("At the end $(sum(protected_species_number[1:end])) of the $(N_species) species are protected with $(sum(protected_number[1:end])) individuals")
+CSV.write("percolation/Game/protected_times_alpha_$α.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/Game/protected_number_alpha_$α.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/Game/protected_species_times_alpha_$α.csv.gz", DataFrame(prot_species_times=protected_species_times))
+CSV.write("percolation/Game/protected_species_number_alpha_$α.csv.gz", DataFrame(prot_species_number=protected_species_number))
+println("files saved at percolation/Game")
+
 ##
 p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Game dynamics (a=$α)", savename = "game_dynamics_a_$(α)")
 pcost = plot_protection_cost(protected_cost, "Game dynamics (a=$α)", savename = "game_dynamics_a_$(α)")
 p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Game dynamics (a=$α)", savename = "game_dynamics_cost_a_$(α)")
 plot(p1,pcost,p3)
-plot(p1)
+# plot(p1)
 
 ##
 α = -1
@@ -340,7 +366,8 @@ protected_times, protected_number, protected_cost, protected_eezs =
     start_protecting = rich,
     α=α,
     order="higher",
-    cooperating_threshold_p = 0.5)
+    cooperating_threshold_p = 0.5,
+    tie_mode = 0)
     
 protected_species_number, protected_species_times =
  protected_species(
@@ -351,9 +378,14 @@ protected_species_number, protected_species_times =
 println("Total cost: ", sum(protected_cost))
 println("Initially $(protected_species_number[1]) of the $(N_species) species are protected with $(protected_number[1]) individuals")
 println("At the end $(sum(protected_species_number[1:end])) of the $(N_species) species are protected with $(sum(protected_number[1:end])) individuals")
+CSV.write("percolation/Game/protected_times_alpha_$α.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/Game/protected_number_alpha_$α.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/Game/protected_species_times_alpha_$α.csv.gz", DataFrame(prot_species_times=protected_species_times))
+CSV.write("percolation/Game/protected_species_number_alpha_$α.csv.gz", DataFrame(prot_species_number=protected_species_number))
+println("files saved at percolation/Game")
 ##
 p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Game dynamics (a=$α)", savename = "game_dynamics_a_$(α)")
 pcost = plot_protection_cost(protected_cost, "Game dynamics (a=$α)", savename = "game_dynamics_a_$(α)")
 p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Game dynamics (a=$α)", savename = "game_dynamics_cost_a_$(α)")
 plot(p1,pcost,p3)
-plot(p1)
+# plot(p1)

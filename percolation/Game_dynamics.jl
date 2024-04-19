@@ -151,15 +151,29 @@ function incetives_game(data, prob; start_protecting = [0,8], α=0, order="highe
         id_weights = compute_id_weight(unique_pairs; α=α)
         # 2- compute the incentives for each EEZ
         eezs_incentives = compute_eez_payoff(unique_pairs, id_weights)
+        # write the incentives to a line in the file
         # 3- compute the probability of getting that incentive or more
         eezs_coop_odds = compute_cooperating_probability(
             unprotected_prob,
             eezs_incentives,
             max_reward)
+
+        
+        
         # 4- from those EEZs that have a probability of getting the incentive 
         # higher than the threshold, select the one with the highest incentive.
         # If all the probabilities are below the threshold, stop the game.
         willing_to_cooperate = eezs_coop_odds .> cooperating_threshold_p
+        open("percolation/Game_incentives.csv", "a") do io
+            write(io, join(string.(reverse(eezs_incentives[willing_to_cooperate])), ",")*"\n")
+        end
+        open("percolation/Game_coop_prob.csv", "a") do io
+            write(io, join(string.(eezs_coop_odds[willing_to_cooperate]), ",")*"\n")
+        end
+        open("percolation/Game_willing_to_cooperate.csv", "a") do io
+            sss = join(string.(eezs_incentives[willing_to_cooperate]), ",")*"\n"
+            write(io,sss)
+        end
         if all(!, willing_to_cooperate)
             println("All the probabilities are below the threshold, 
             stopping the game at iteration $ii.")
@@ -176,9 +190,15 @@ function incetives_game(data, prob; start_protecting = [0,8], α=0, order="highe
         elseif order == "lower"
             arg = argmin(eezs_incentives)
         end
-        protect_eez = unprotected_eezs[arg]
+        protect_eez = unprotected_eezs[willing_to_cooperate][arg]
         push!(prot_eezs, protect_eez)
         prot_cost[ii] = eezs_incentives[arg]
+
+        open("percolation/Game_EEZSwilling_to_cooperate.csv", "a") do io
+            sss = join(string.(unprotected_eezs[willing_to_cooperate]), ",")*":$protect_eez"*"\n"
+            write(io,sss)
+        end
+
 
         # Update the lists of protected and unprotected individuals
         data = data[data[:, :EEZ] .!= protect_eez, :]        
@@ -195,12 +215,36 @@ function incetives_game(data, prob; start_protecting = [0,8], α=0, order="highe
     return prot_times, prot_number, prot_cost, prot_eezs
 end
 
+"""
+    protected_species(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
+
+Compute the number of individuals and species protected at each time step.
+The function returns two vectors, one with the number of individuals protected at each time step, and the other with the time at which each species is protected.
+
+
+# Arguments
+- prot_number::Vector{Int64}: Number of individuals protected at each time step. The length
+    of the vector is the number of time steps
+- prot_times::Vector{Int64}: Time at which each individual is protected. The length of the vector
+    is the number of individuals. If the individual is not protected, the time is set 
+    to the length of the prot_number vector plus one.
+- dict_id_species::Dict{Int64, String}: Dictionary with the species of each individual
+- newids::Vector{Int64}: List of the individuals
+- threshold::Float64: Fraction of individuals of a species that need to be protected
+
+# Returns
+- prot_species_number::Vector{Int64}: Number of species protected at each time step. 
+    The length of the vector is the number of time steps
+- prot_species_times::Vector{Int64}: Time at which each species is protected. 
+    If the species is not protected, the time is set to the length of the 
+    prot_number vector plus one.
+    """
 function protected_species(
-        prot_number, prot_times,
-        dict_id_species,
-        newids;
-        threshold = 0.5
-        )
+    prot_number, prot_times,
+    dict_id_species,
+    newids;
+    threshold = 0.5
+    )
     species = [dict_id_species[id] for id in newids]
     unique_species = unique(species)
     threshold_species = [
@@ -208,7 +252,8 @@ function protected_species(
         for sp in unique_species
             ]
     t_non_protected = length(prot_number) + 1
-
+    
+    # Initialize the variables with no species protected
     prot_species_number = zeros(Int64, size(prot_number))
     prot_species_times  = fill(
         maximum(prot_number),
@@ -217,17 +262,14 @@ function protected_species(
     for (sp_idx, sp) in enumerate(unique_species) # for each species 
         sp_times = prot_times[species .== sp] 
         sp_threshold = threshold_species[sp_idx]
-        n_prot_sp = 0
-        t_prot = 0
-        n_prot_sp = sum(sp_times .<= t_prot)
-        while ((n_prot_sp < sp_threshold) || (n_prot_sp == 0)) && (t_prot <= t_non_protected)
-            t_prot += 1
-            n_prot_sp = sum(sp_times .<= t_prot)
-        end
-        prot_species_times[sp_idx] = t_prot <= t_non_protected ? t_prot : t_non_protected
-        if t_prot <= t_non_protected
+        unique_sp_times = sort(unique(sp_times))
+        sp_times_count = cumsum([count(==(i), sp_times) for i in unique_sp_times])
+        t_prot = unique_sp_times[findfirst(>=(sp_threshold), sp_times_count)]
+        if (t_prot != nothing) && (t_prot < t_non_protected)
+            prot_species_times[sp_idx] = t_prot
             prot_species_number[t_prot+1] += 1
         end
+
     end
     return prot_species_number, prot_species_times
 end

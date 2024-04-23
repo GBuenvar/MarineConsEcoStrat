@@ -14,10 +14,11 @@ int_to_species = Dict(zip(species_codes.Int, species_codes.Species))
 # read the eez_to_iso3 file
 eez_to_iso3_data = CSV.read("data/eez_to_iso3.csv", DataFrame)
 eez_to_iso3 = Dict(zip(eez_to_iso3_data.Country, eez_to_iso3_data.ISO_3digit))
-# add High Seas
-# eez_to_iso3["-1"] = "-1"
+# read the economic data
+economic_data = DataFrame(XLSX.readtable("data/CLASS.xlsx", "List of economies"))
 
-mkpath("percolation/comb_prob")
+
+mkpath("percolation/uncorrelated_random/")
 
 ##
 # Read the data, consisting on the newid, the species, the eez and the time spent in the eez    
@@ -31,6 +32,8 @@ N_species = length(unique(agg_data[:, :Species]))
 eezs = unique(agg_data[:, :EEZ])
 iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs];
 
+
+rich, poor = Rich_Poor_lists(eezs, iso3_eez, economic_data)
 ##
 
 
@@ -119,11 +122,25 @@ populations of individuals that visited the same number of eezs.
 
 σ^2 = Σ σ_m^2 = Σ n_m p_m(1-p_m)
 """
-function protection_odds(agg_data)
+function protection_odds(agg_data; start_protecting=[], species=nothing)
     eezs = unique(agg_data[:, :EEZ])
-    ntot = length(eezs)
+    ntot = length(eezs) - length(start_protecting)
     μ = zeros(ntot+1) # μ=μ(n)=<s^m>(n) = s^m * P^m(n) 
     σ2 = zeros(ntot+1) # σ^2=σ^2(n)= s^m * P^m(n) (1-P^m(n)
+    
+    #filter the species
+    if species != nothing
+        agg_data = agg_data[agg_data[:, :Species] .== species, :]
+    end
+    #protect the first eezs
+    tot_ids = length(unique(agg_data[:, :newid]))
+    agg_data = agg_data[agg_data[:, :EEZ] .∉ (start_protecting,), :]
+    intially_protected = tot_ids - length(unique(agg_data[:, :newid]))
+    # println("Initially protected: ", intially_protected)
+    μ .+= intially_protected
+    if size(agg_data, 1) == 0
+        return μ, σ2
+    end
     m_of_ids = combine(groupby(agg_data, :newid), nrow)[!, :nrow]
     for m in range(1, maximum(m_of_ids))
         Size_m = sum(m_of_ids .== m)
@@ -136,48 +153,7 @@ function protection_odds(agg_data)
     return μ, σ2
 end
 
-eezsvisited = combine(groupby(agg_data, :newid), nrow)[!, :nrow]
-##
-
-
-
-# esto solo es para mostrar que el proxy funciona
-p1 = plot(xlabel = "Protecting EEZs", ylabel="Expected number of protected Individuals")
-p2 = plot()
-
-protected_number_mean, protected_number_var = protection_odds(agg_data)
-protected_number_std = sqrt.(protected_number_var) 
-top_bound = protected_number_mean .+ protected_number_std
-bottom_bound = protected_number_mean .- protected_number_std
-plot!(p1, bottom_bound ./ N, fillrange = top_bound ./ N, label=L"\mu\pm \sigma^2", c=:blue, fillalpha=0.3, alpha=0)
-plot!(p1, protected_number_mean ./ N, label=L"\mu", c=:black)
-# plot!(p1, bottom_bound, c=:black, label=nothing)
-savefig(p1, "percolation/figures/uncorrelated_random.png")
-savefig(p1, "percolation/figures/uncorrelated_random.pdf")
-
-
-
-# plot!(p1, sum([proxy_odds(180, n) .* sum(eezsvisited .== n) for n in 1:180]), label="<proxy>", c=:red)
-
-plot(p1)
-
-##
-
-p2 = plot()
-for m in 1:maximum(m_of_ids)
-    plot!(p2, sum(m_of_ids .== m)^2 .* ind_protection_odds(180, m), label="<m=$m>, $(sum(m_of_ids .== m))", c=:black)
-end
-plot!(p2)
-# plot!(p2, [proxy_odds(180, n) for n in 1:180], label=nothing, c=:red)
-
-# plot!(p2, [[],[]], label=["P^m(n)"], c=[:blue])
-
-# plot(p1, p2)? 
-
-
-##
-
-function species_protection_odds(agg_data, threshold=0.5)
+function species_protection_odds(agg_data; threshold=0.5, start_protecting=[])
     eezs = unique(agg_data[:, :EEZ])
     
     species = unique(agg_data[:, :Species])
@@ -188,19 +164,98 @@ function species_protection_odds(agg_data, threshold=0.5)
                 )[:, :Species] .== s
             ) * threshold
             ) for s in species]
-    prot_species = zeros(length(eezs)+1)
+    prot_species = zeros(length(eezs) +1 - length(start_protecting))
     for (s, st) in zip(species, species_threshold)
-        s_data = @view agg_data[agg_data[:, :Species] .== s, :]
-        members_protected_mean, members_protected_var = protection_odds(s_data)
+        members_protected_mean, members_protected_var = protection_odds(
+            agg_data,
+            species=s,
+            start_protecting=start_protecting)
+        # println(size(prot_species))
+        # println(members_protected_mean)
         prot_species .+= members_protected_mean .>= st
     end
     return prot_species    
 end
 
-prot_species = species_protection_odds(agg_data)
 
-pspecies = plot(xlabel="EEZ", ylabel="Protected Species")
-plot!(pspecies, prot_species, label="Protected Species", c=:black)
 ##
+protected_number_mean, protected_number_var = protection_odds(
+    agg_data,
+    start_protecting=rich)
+protected_number_std = sqrt.(protected_number_var) 
+top_bound = protected_number_mean .+ protected_number_std
+bottom_bound = protected_number_mean .- protected_number_std
+
+prot_species = species_protection_odds(
+    agg_data,
+    threshold=0.5,
+    start_protecting=rich
+    )
+
+# save the protected number mean, variance and the species protected
+CSV.write("percolation/uncorrelated_random/protected_rich.csv",
+    DataFrame(
+        protected_number_mean=protected_number_mean,
+        protected_number_var=protected_number_var,
+        protected_species=prot_species
+        )
+        )
+
+
+##
+p1 = plot(
+    xlabel = "Cooperating EEZs",
+    ylabel="Expected number of protected Individuals"
+    )
+plot!(p1, collect(0:length(protected_number_mean)-1), bottom_bound ./ N, fillrange = top_bound ./ N, label=L"\mu\pm \sigma^2", c=:blue, fillalpha=0.3, alpha=0)
+plot!(p1, collect(0:length(protected_number_mean)-1), protected_number_mean ./ N, label=L"\mu", c=:black)
+
+pspecies = plot(xlabel="cooperating EEZ", ylabel="Protected Species")
+plot!(pspecies, collect(0:length(prot_species)-1), prot_species, label=nothing, c=:black)
+
+ptot = plot(p1, pspecies, layout=(2,1), size=(800, 800))
+##
+savefig(ptot, "percolation/figures/uncorrelated_random.png")
+savefig(ptot, "percolation/figures/uncorrelated_random.pdf")
+plot(ptot)
+
+##
+
+
+
+##
+protected_number_mean, protected_number_var = protection_odds(
+    agg_data,
+    )
+protected_number_std = sqrt.(protected_number_var) 
+top_bound = protected_number_mean .+ protected_number_std
+bottom_bound = protected_number_mean .- protected_number_std
+
+prot_species = species_protection_odds(
+    agg_data,
+    threshold=0.5,
+    )
+
+# save the protected number mean, variance and the species protected
+CSV.write("percolation/uncorrelated_random/protected.csv",
+    DataFrame(
+        protected_number_mean=protected_number_mean,
+        protected_number_var=protected_number_var,
+        protected_species=prot_species
+        )
+        )
+
+##
+p1 = plot(
+    xlabel = "Cooperating EEZs",
+    ylabel="Expected number of protected Individuals"
+    )
+plot!(p1, collect(0:length(protected_number_mean)-1), bottom_bound ./ N, fillrange = top_bound ./ N, label=L"\mu\pm \sigma^2", c=:blue, fillalpha=0.3, alpha=0)
+plot!(p1, collect(0:length(protected_number_mean)-1), protected_number_mean ./ N, label=L"\mu", c=:black)
+
+pspecies = plot(xlabel="cooperating EEZ", ylabel="Protected Species")
+plot!(pspecies, collect(0:length(prot_species)-1), prot_species, label=nothing, c=:black)
+
+ptot = plot(p1, pspecies, layout=(2,1), size=(800, 800))
 
 

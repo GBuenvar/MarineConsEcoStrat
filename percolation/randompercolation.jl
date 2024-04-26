@@ -16,6 +16,10 @@ s = ArgParseSettings()
         help = "Threshold for the number of individuals of a species that need to be protected"
         default = 0.5
         arg_type = Float64
+    "--rich_protect", "-r"
+        help = "Start protecting the rich countries"
+        default = true
+        arg_type = Bool
 end
 
 p = parse_args(ARGS, s)
@@ -23,6 +27,7 @@ p = parse_args(ARGS, s)
 n = p["nrep"]
 seed = p["seed"]
 threshold = p["threshold"]
+rich_protect = p["rich_protect"]
 
 ##
 
@@ -71,16 +76,28 @@ function plot_trajectories_median(prot_number, median_prot_number, n; xlabel = "
 end
 
 ##
-protected_times, protected_number = @time random_perc(agg_data, n)
+##
+start_protecting = [0, 8]
+suffix = ""
+if rich_protect
+    rich, poor = Rich_Poor_lists(eezs, iso3_eez, economic_data)
+    start_protecting = rich
+    println("Rich countries: ", rich)
+    suffix = "_rich"
+end
+
+
+protected_times, protected_number = @time random_perc(agg_data, n, start_protecting = start_protecting)
 median_protected_number = @time median_protected(protected_number)
+
 
 
 ##
 p_inds = plot_trajectories_median(protected_number, median_protected_number, N; xlabel = "protecting EEZs", ylabel = "Fraction of protected individuals", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_ids")
 # save outputs in compressed files
-CSV.write("percolation/random/protected_times.csv.gz", DataFrame(protected_times, :auto))
-CSV.write("percolation/random/protected_number.csv.gz", DataFrame(protected_number, :auto))
-CSV.write("percolation/random/median_protected_number.csv.gz", DataFrame(median_protected_number, :auto))
+CSV.write("percolation/random/protected_times$suffix.csv.gz", DataFrame(protected_times, :auto))
+CSV.write("percolation/random/protected_number$suffix.csv.gz", DataFrame(protected_number, :auto))
+CSV.write("percolation/random/median_protected_number$suffix.csv.gz", DataFrame(median_protected_number, :auto))
 
 ##
 species_id, protected_species_number, protected_species_times = @time protected_species_random(protected_number, protected_times, id_to_species_int, newids)
@@ -91,6 +108,8 @@ median_protected_species_number = @time median_protected(protected_species_numbe
 ##
 p_species = plot_trajectories_median(protected_species_number, median_protected_species_number, N_species; xlabel = "# EEZs protected", ylabel = "Fraction of protected species", legend = false, dpi = 300, namesave = "percolation/figures/random_protected_species")
 # save outputs in compressed files
-CSV.write("percolation/random/protected_species_number.csv.gz", DataFrame(protected_species_number, :auto))
-CSV.write("percolation/random/protected_species_times.csv.gz", DataFrame(protected_species_times, :auto))
-CSV.write("percolation/random/median_protected_species_number.csv.gz", DataFrame(median_protected_species_number, :auto))
+CSV.write("percolation/random/protected_species_number$suffix.csv.gz", DataFrame(protected_species_number, :auto))
+CSV.write("percolation/random/protected_species_times$suffix.csv.gz", DataFrame(protected_species_times, :auto))
+CSV.write("percolation/random/median_protected_species_number$suffix.csv.gz", DataFrame(median_protected_species_number, :auto))
+
+

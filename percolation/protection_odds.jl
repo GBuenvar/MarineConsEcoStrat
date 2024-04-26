@@ -197,7 +197,7 @@ CSV.write("percolation/uncorrelated_random/protected_rich.csv",
     DataFrame(
         protected_number_mean=protected_number_mean,
         protected_number_var=protected_number_var,
-        protected_species=prot_species
+        prot_species=prot_species
         )
         )
 
@@ -257,5 +257,6 @@ pspecies = plot(xlabel="cooperating EEZ", ylabel="Protected Species")
 plot!(pspecies, collect(0:length(prot_species)-1), prot_species, label=nothing, c=:black)
 
 ptot = plot(p1, pspecies, layout=(2,1), size=(800, 800))
+
 
 

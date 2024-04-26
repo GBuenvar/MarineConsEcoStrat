@@ -79,8 +79,9 @@ function protected_species(
         t_prot = unique_sp_times[findfirst(>=(sp_threshold), sp_times_count)]
         if (t_prot != nothing) && (t_prot < t_non_protected)
             prot_species_times[sp_idx] = t_prot
-            prot_species_number[t_prot] += 1
+            prot_species_number[t_prot+1] += 1
         end
+
     end
     return prot_species_number, prot_species_times
 end
@@ -393,7 +394,7 @@ function random_perc_1_rep(data; start_protecting = [0, 8], rng = MersenneTwiste
 
     unprotected_ids  = unique(data[:, :newid])
     prot_times  = zeros(Int64, length(newids))
-    prot_number = zeros(Int64, length(eezlist))
+    prot_number = zeros(Int64, length(eezlist) - length(start_protecting) + 1)
 
     # Protect the first EEZs
     data = data[.!(data[:, :EEZ] .∈ (start_protecting, )), :] # protect the EEZ
@@ -405,7 +406,7 @@ function random_perc_1_rep(data; start_protecting = [0, 8], rng = MersenneTwiste
         prot_times[newids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
     end
     unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
-    random_eezlist = shuffle(rng, eezlist[eezlist .!= 0])
+    random_eezlist = shuffle(rng, eezlist[eezlist .∉ (start_protecting, )])
     @views for (t, eez) in enumerate(random_eezlist)
         data = data[data[:, :EEZ] .!= eez, :]    # protect a new EEZ
         new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
@@ -429,7 +430,7 @@ function random_perc(data, n; start_protecting = [0, 8], seed = 1234)
     newids = unique(data[:, :newid])
     eezlist = unique(data[:, :EEZ])
     prot_times = zeros(Int64, (n, length(newids)))
-    prot_number = zeros(Int64, (n, length(eezlist)))
+    prot_number = zeros(Int64, (n, length(eezlist) - length(start_protecting) + 1))
     for i in 1:n
         prot_times[i, :], prot_number[i, :] = random_perc_1_rep(data; start_protecting= start_protecting, rng = rng, newids = newids, eezlist = eezlist)
     end   
@@ -449,6 +450,7 @@ end
 function protected_species_random(prot_number, prot_times, dict_id_species, newids; threshold = 0.5)
     species = [dict_id_species[id] for id in newids]
     unique_species = unique(species)
+    t_non_protected = size(prot_number, 2) + 1
     threshold_species = [Int64(round(threshold * sum(species .== sp))) for sp in unique_species]
     nn = size(prot_number)[1]
     prot_species_number = zeros(Int64, size(prot_number))
@@ -457,14 +459,21 @@ function protected_species_random(prot_number, prot_times, dict_id_species, newi
         for (sp_idx, sp) in enumerate(unique_species) # for each species 
             sp_times = prot_times[ii, species .== sp] 
             sp_threshold = threshold_species[sp_idx]
+            unique_sp_times = sort(unique(sp_times))
+            sp_times_count = cumsum([count(==(i), sp_times) for i in unique_sp_times])
             n_prot_sp = 0
-            t_prot = 1
-            while (n_prot_sp < sp_threshold) || (n_prot_sp == 0)
-                n_prot_sp = sum(sp_times .<= t_prot)
-                t_prot += 1
+            t_prot = unique_sp_times[findfirst(>=(sp_threshold), sp_times_count)]
+            if (t_prot != nothing) && (t_prot < t_non_protected)
+                prot_species_times[ii, sp_idx] = t_prot
+                prot_species_number[ii, t_prot+1] += 1
             end
-            prot_species_times[ii, sp_idx] = t_prot
-            prot_species_number[ii, t_prot] += 1
+    
+            # while (n_prot_sp < sp_threshold) || (n_prot_sp == 0)
+            #     n_prot_sp = sum(sp_times .<= t_prot)
+            #     t_prot += 1
+            # end
+            # prot_species_times[ii, sp_idx] = t_prot
+            # prot_species_number[ii, t_prot] += 1
         end
     end
     return species, prot_species_number, prot_species_times
@@ -483,7 +492,7 @@ function run_diversity(data; start_protecting = [0, 8], α=1., q=1.)
 
     # Initialize the variables
     unprotected_ids  = unique(data[:, :newid])
-    prot_times  = zeros(Int64, length(ids))
+    prot_times  = fill(Neez+1, length(ids)) 
     prot_number = zeros(Int64, Neez+1)
     prot_cost   = zeros(Float64, Neez+1)
     prot_eezs   = copy(start_protecting)

@@ -134,7 +134,7 @@ end
 # Initial conditions
 rich, poor = Rich_Poor_lists(eezs, iso3_eez, economic_data)
 EEZ_neis_dict = compute_neighbors(agg_data)
-rich = rich[1:end-2] # remove the high seas and the antarctic
+# rich = rich[1:end-2] # remove the high seas and the antarctic
 q = 0.
 
 

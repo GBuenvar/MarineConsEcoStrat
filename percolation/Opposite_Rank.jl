@@ -79,102 +79,80 @@ function projected_graph(
         # remove the rows of node in the neighbors_times
         neighbors_times = neighbors_times[neighbors_times[:, :newid] .!= node, :]
         # add the node to the projected graph
-        node_A = fill(node, size(neighbors_times, 1))
-        node_B = neighbors_times[:, :newid]
-        weight = neighbors_times[:, :nrow]
-        
-        projected_df = vcat(
-            projected_df,
-            DataFrame(
-                node_A = node_A,
-                node_B = node_B,
-                weight = weight
-            )
-        )
-
+        for row in eachrow(neighbors_times)
+            push!(projected_df, [node, row.newid, row.nrow])
+            push!(projected_df, [row.newid, node, row.nrow])
+        end
+        # remove the node from the bipartite graph
+        bipartite_df = bipartite_df[bipartite_df[:, projected_partition] .!= node, :]
     end
     return projected_df
+    
 end
 
+@time projected_df = projected_graph(agg_data, :newid, :EEZ)
 
-@time projected_graph(agg_data, :newid, :EEZ)
+##
 
-
-## 
-using Graphs
-function degree_ranking(
-        projected_df,
-        node_weight,
-)
-
+function degree_ranking(projected_df, node_N=nothing)
     # calculate the degree of each node
+    # by summing all the weights of the same node
     degree_df = combine(
         groupby(projected_df, :node_A),
         :weight => sum
     )
     rename!(degree_df, :weight_sum => :degree)
-    # sort the nodes by degree
-    sort!(degree_df, :degree, rev=true
+    if node_N != nothing
+        degree_df[!, :degree] = degree_df[!, :degree] ./ node_N
+    end
+    # sort the degree_df
+    sort!(degree_df, :degree, rev=true)
+    return degree_df
     
 end
 
-function projected_graph(
-    bipartite_df,
-    projected_partition,
-    complementary_partition,
-    weight_column=nothing
-    )
+@time degree_df = degree_ranking(projected_df)
 
-projected_df = DataFrame(
-    node_A = Int[],
-    node_B = Int[],
-    weight = Float64[]
-)
-nodes = unique(bipartite_df[:, projected_partition])
-for node in nodes
+nodes_N = combine(groupby(agg_data, :newid), nrow)[:, :nrow]
+@time degree_df_N = degree_ranking(projected_df, nodes_N)
 
-    node_EEZ_list = bipartite_df[
-        bipartite_df[:, projected_partition] .== node, complementary_partition
-        ]
-    neighbouring_subset = @view bipartite_df[
-        bipartite_df[:, complementary_partition] .∈ (node_EEZ_list,), :]
-    # remove the node from the subset
-    neighbouring_subset = neighbouring_subset[
-        neighbouring_subset[:, projected_partition] .!= node, :]
-    # count the number of times each newid appears in the subset
-    neighbors_times = combine(
-        groupby(neighbouring_subset, :newid),
-        nrow
-        )
-    # add the node to the projected graph
-    node_A = fill(node, size(neighbors_times, 1))
-    node_B = neighbors_times[:, :newid]
-    weight = neighbors_times[:, :nrow]
+
+function ranked_ids_remove_eezs(data, start_protecting = [0,8], include_eez_resistant=false)
+    ids::Vector{Int64} = unique(data[:, :newid])
+    eezs::Vector{Int64} = unique(data[:, :EEZ])
+    iterated_eezs::Vector{Int64} = setdiff(eezs, start_protecting)
+    Neez::Int = length(iterated_eezs)
+
+    # Initialize the variables
+    unprotected_ids  = unique(data[:, :newid])
+    prot_times  = fill(Neez+1, length(ids)) 
+    prot_number = zeros(Int64, Neez+1)
+    prot_eezs   = copy(start_protecting)
     
-    projected_df = vcat(
-        projected_df,
-        DataFrame(
-            node_A = node_A,
-            node_B = node_B,
-            weight = weight
-        )
-    )
 
-    projected_df = vcat(
-        projected_df,
-        DataFrame(
-            node_A = node_B,
-            node_B = node_A,
-            weight = weight
-        )
-    )
-    # remove the node from the bipartite graph
-    bipartite_df = bipartite_df[bipartite_df[:, projected_partition] .!= node, :]
-end
-# sort the projected graph by node_A, node_B
-#sort!(projected_df, [:node_A, :node_B])
-
-return projected_df
-end
+    #######
+    # Ver bien como implementar esto, porque en lugar de incorporar
+    # las EEZ de una en una como en otros metodos,
+    #  en este caso se incorportan todas las que visita el primero del 
+    #  ranking a a la vez. 
+    #  una opcion es guardar en prot_times el numero de EEZ que 
+    #  se han protegido antes de proteger al individuo. En prot_number
+    #  que haya saltos que indiquen que se han protegido varias a la vez, \
+    #  y a la vez que prot_eezs se guarde en que paso se ha protegido cada eez
+    #  ya que todas las que se protegen a la vez tienen el mismo tiempo.
+    #######
 
 
+    # compute the degree of each node and rank them, then remove its EEZs
+    if include_eez_resistant
+        higher_rank = degree_ranking(
+            projected_graph(data, :newid, :EEZ),
+            combine(groupby(data[:, :newid], :newid), nrow)
+            )[1]
+    else
+        degree_df = degree_ranking(
+            projected_graph(data, :newid, :EEZ)
+            )[1]
+    end
+
+    

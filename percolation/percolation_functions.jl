@@ -52,7 +52,8 @@ The function returns two vectors, one with the number of individuals protected a
     prot_number vector plus one.
     """
 function protected_species(
-    prot_number, prot_times,
+    prot_number,
+    prot_times,
     dict_id_species,
     newids;
     threshold = 0.5
@@ -467,13 +468,6 @@ function protected_species_random(prot_number, prot_times, dict_id_species, newi
                 prot_species_times[ii, sp_idx] = t_prot
                 prot_species_number[ii, t_prot+1] += 1
             end
-    
-            # while (n_prot_sp < sp_threshold) || (n_prot_sp == 0)
-            #     n_prot_sp = sum(sp_times .<= t_prot)
-            #     t_prot += 1
-            # end
-            # prot_species_times[ii, sp_idx] = t_prot
-            # prot_species_number[ii, t_prot] += 1
         end
     end
     return species, prot_species_number, prot_species_times
@@ -619,4 +613,182 @@ function compute_div(df; q=0.)
     sizes = compute_species_dist(df)
     df_div = hill_number(sizes, q=q)
     return df_div
+end
+
+
+## Ranking based on the degree of the nodes in the projected network
+
+
+function projected_graph(
+    bipartite_df,
+    projected_partition,
+    complementary_partition,
+    weight_column=nothing
+    )
+
+projected_df = DataFrame(
+    node_A = Int[],
+    node_B = Int[],
+    weight = Float64[]
+)
+nodes = unique(bipartite_df[:, projected_partition])
+@views for node in nodes
+    # get the zones visited by the individual
+    node_EEZs = bipartite_df[
+        bipartite_df[:, projected_partition] .== node,
+        complementary_partition
+        ]
+    # get the subset of the bipartite graph with the zones visited by the individual
+    neighbouring_subset = bipartite_df[
+        bipartite_df[:, complementary_partition] .∈ (node_EEZs,),
+        :]
+    
+    if isnothing(weight_column)
+        # count the number of times each individual visits a zone in the subset
+        neighbors_times = combine(
+            groupby(neighbouring_subset, :newid),
+            nrow
+            )
+        rename!(neighbors_times, :nrow => :weight)
+    else
+        neighbors_times = combine(
+            groupby(neighbouring_subset, :newid),
+            weight_column => sum
+            )
+        rename!(neighbors_times, weight_column*"_sum" => :weight)
+    end
+    # remove the self node
+    neighbors_times = neighbors_times[neighbors_times[:, :newid] .!= node, :]
+    # add the node to the projected graph
+    append!(
+        projected_df, 
+        DataFrame(
+            node_A = fill(node, size(neighbors_times, 1)),
+            node_B = neighbors_times[:, :newid],
+            weight = neighbors_times[:, :weight]
+        ))
+end
+return projected_df
+
+end
+
+function degree_ranking(
+    projected_df::DataFrame,
+    node_N=nothing
+    )
+    # calculate the degree of each node
+    # by summing all the weights of the same node
+    degree_df = combine(
+        groupby(projected_df, :node_A),
+        :weight => sum
+    )
+    sort!(degree_df, :node_A, rev=true)
+    rename!(degree_df, :weight_sum => :degree)
+    if !isnothing(node_N)
+        degree_df[!, :degree] = degree_df[!, :degree] ./ node_N
+    end
+    # sort the degree_df
+    sort!(degree_df, :degree, rev=true)
+
+    return degree_df
+end
+
+##
+function ranked_ids_remove_eezs(
+    data::DataFrame,
+    start_protecting::Vector{Int} = [0,8],
+    include_eez_resistant::Bool=false,
+    weight_column=nothing
+    )
+
+    ids::Vector{Int64} = unique(data[:, :newid])
+    eezs::Vector{Int64} = unique(data[:, :EEZ])
+    iterated_eezs::Vector{Int64} = setdiff(eezs, start_protecting)
+    Neez::Int = length(iterated_eezs)
+
+    # Initialize the variables
+    unprotected_ids  = unique(data[:, :newid])
+    prot_times  = fill(Neez+1, length(ids)) 
+    prot_number = zeros(Int64, Neez+1)
+    prot_eezs   = copy(start_protecting)
+    eez_prot_times = fill(length(eezs)+1, length(eezs))
+    eez_prot_times[eezs .∈ (start_protecting,)] .= 0
+
+    # Protect the first EEZs
+    data = data[data[:, :EEZ] .∈ (iterated_eezs, ), :]
+    new_unprotected_ids = unique(data[:, :newid]) # get the list of the individuals that are still not protected
+    new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids) # get the list of the individuals that are now protected
+    if length(new_protected_ids) > 0
+        # add the new protected individuals to the list
+        prot_number[1] = length(new_protected_ids)
+        prot_times[ids .∈ (new_protected_ids,)] .= 0 # add the time at which they were protected
+    end
+    unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
+    unprotected_eezs = copy(iterated_eezs)
+    ii = 2 
+    steps = 0
+    while size(data, 1) > 0
+        
+        unique_pairs = unique(data[:, ["newid", "Species", "EEZ"]])
+        unprotected_eezs = unique(unique_pairs[:, :EEZ])
+
+        # 1- compute the degree of each node and rank them
+        if include_eez_resistant
+            proj_df = projected_graph(data, :newid, :EEZ, weight_column)
+            sorted_N = sort(
+                combine(groupby(data, :newid), nrow), 
+                :newid
+                )  
+            # remove the isolated nodes from the list 
+            sorted_N = sorted_N[sorted_N.newid .∈ (proj_df.node_A, ), :][:, :nrow]
+            higher_rank = degree_ranking(
+                proj_df,
+                sorted_N
+            )
+        else
+            higher_rank = degree_ranking(
+                projected_graph(data, :newid, :EEZ, weight_column),
+                )
+
+        end
+
+        # if the projected network is no connected, simply return the degree_df
+        # as the degree in the bipartite network (that is equivalent to rank by number of visited zones)
+        if size(higher_rank, 1) == 0
+            higher_rank = sort(
+                combine(groupby(data, :newid), nrow), 
+                :newid
+                )
+            rename!(higher_rank, :newid => :node_A)
+        end
+        higher_rank = higher_rank[1, :node_A]
+
+        # 2- get the zones visited by the individual
+        protect_eez = data[
+            data[:, :newid] .== higher_rank,
+            :EEZ
+            ]
+
+        # 3- protect the zones visited by the individual.
+        # 3.1.- store the new cooperating eezs and remove them
+        n_prot = length(protect_eez)
+        prot_eezs = vcat(prot_eezs, protect_eez)
+        eez_prot_times[eezs .∈ (protect_eez, )] .= steps
+        data = data[data[:, :EEZ] .∉ (protect_eez, ), :]        
+        
+        # 3.2.- store the protected individuals
+        # add the protected individual after all 
+        # the new EEZs are cooperating
+        new_unprotected_ids = unique(data[:, :newid])
+        new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids)
+        index_add = ii + n_prot - 1
+        prot_number[index_add] = length(new_protected_ids)
+        prot_times[ids .∈ (new_protected_ids,)] .= index_add - 1
+
+        # 4- update the variables of the simulation and continue
+        unprotected_ids = new_unprotected_ids
+        ii += n_prot
+        steps += 1
+    end
+    return prot_times, prot_number, prot_eezs, eez_prot_times
 end

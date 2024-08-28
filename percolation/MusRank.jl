@@ -106,13 +106,13 @@ end
 ##
 function importance_n(matrix, prev_vulnerability)
     importance = sum(matrix .* prev_vulnerability, dims=1)[1, :]
-    importance = importance ./ sum(importance)
+    importance = importance ./ mean(importance)
     return importance
 end
 
 function vulnerability_n(matrix, prev_importance)
     vulnerabilty = 1 ./ sum(matrix .* (1 ./ prev_importance)', dims=2)[:, 1]
-    vulnerabilty = vulnerabilty ./ sum(vulnerabilty)
+    vulnerabilty = vulnerabilty ./ mean(vulnerabilty)
     return vulnerabilty
 end
 
@@ -156,7 +156,7 @@ sorted_animal_eez, sorted_I, sorted_V, sorted_countries_animals, sorted_animals 
 heatmap(sorted_animal_eez',
         xflip=true,
         yflip=true, 
-        yticks=(1:length(sorted_countries), sorted_countries),
+        yticks=(1:length(sorted_countries_animals), sorted_countries_animals),
         c=cgrad([:white, :orange]),
         xlabel="EEZ",
         ylabel="Animal",
@@ -198,5 +198,5 @@ for weighted_col in [nothing, "timestay (1/30days)"]
     savefig("Nestedness/species_eez_matrix_$(w)_$(i).png")
     end
 end
-plot(ps[1], ps[2], ps[3], ps[4], layout=(2, 2), size=(800, 800), dpi=300)
-savefig("Nestedness/species_eez_matrix_all.png")
+p_tot = plot(ps[1], ps[2], ps[3], ps[4], layout=(2, 2), size=(800, 800), dpi=300)
+savefig(p_tot, "Nestedness/species_eez_matrix_all.png")

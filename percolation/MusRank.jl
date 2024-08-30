@@ -66,7 +66,17 @@ function interaction_matrix(agg_data, active_col, passive_col, weighted_col=noth
     return matrix
 end
 
-function species_eez_matrix(agg_data, weighted_col=nothing, intensive=false)
+"""
+species_eez_matrix(agg_data, weighted_col=nothing, intensive=false)
+
+Returns the species-EEZ matrix, where the rows are the species and the columns are the EEZs. The matrix is normalized by the total number of interactions of each species.
+
+Parameters:
+    - agg_data: DataFrame with the data
+    - weighted_col: Column to weight the interactions. If nothing, each interaction is counted as 1
+    - intensive: Whether to normalize the total number of interactions of 
+"""
+function species_eez_matrix(agg_data; weighted_col=nothing, intensive=false)
     # intensive := binary
     n_species = length(unique(agg_data[:, :Species]))
     n_eez = length(unique(agg_data[:, :EEZ]))
@@ -83,10 +93,20 @@ function species_eez_matrix(agg_data, weighted_col=nothing, intensive=false)
     # end
     # matrix = matrix ./ sum(matrix, dims=2)
 
-    global_weight = 0.
+    # desplegar las cuatro opciones:
+
+    # weighted col se usa para el valor del flujo. Si no se especifica, cada interaccion tiene un valor de 1,
+    # y global_weight es el numero de interacciones. sp_total es el numero/pesp de interacciones de la especie
+    # sp_eez es el numero/peso de interacciones de la especie en la eez.
+    # M_cp es la fraccion de interacciones de la especie en la eez. Si intensive es true, se normaliza por el numero
+    
+
+
+    global_weight = nothing
     if intensive
         global_weight = isnothing(weighted_col) ? size(agg_data, 1) : sum(agg_data[!, weighted_col])
     end
+    println("Global weight: $global_weight")
     @views for sp in species
         sp_total = isnothing(weighted_col) ? sum(agg_data.Species .== sp) : sum(agg_data[agg_data.Species .== sp, weighted_col])
         @views for eez in eezs
@@ -95,7 +115,7 @@ function species_eez_matrix(agg_data, weighted_col=nothing, intensive=false)
             M_cp = sp_eez / sp_total
             if intensive
                 eez_total = isnothing(weighted_col) ? sum(agg_data.EEZ .== eez) : sum(agg_data[agg_data.EEZ .== eez, weighted_col])
-                M_cp *= global_weight / eez_total
+                M_cp *= eez_total / global_weight # esto estaba al reves antes, no se cual es el que esta bien
             end
             matrix[species .== sp, eezs .== eez] .= M_cp
         end
@@ -104,6 +124,8 @@ function species_eez_matrix(agg_data, weighted_col=nothing, intensive=false)
 end
 
 ##
+
+# Es posible que el error este en la normaliizacon
 function importance_n(matrix, prev_vulnerability)
     importance = sum(matrix .* prev_vulnerability, dims=1)[1, :]
     importance = importance ./ mean(importance)
@@ -129,8 +151,8 @@ function fixed_point(matrix, max_iter=10000, tol=1e-6)
         end
         importance = new_importance
         vulnerability = new_vulnerability
-        last_i = i
     end
+    last_i = max_iter
     println("Fixed point reached in $last_i iterations")
     return importance, vulnerability
 end
@@ -167,6 +189,8 @@ heatmap(sorted_animal_eez',
 ps = []
 importances = []
 vulnerabilities = []
+Countries_sorted = []
+Species_sorted = []
 for weighted_col in [nothing, "timestay (1/30days)"]
     for intensive in [false, true] 
     species_eez = species_eez_matrix(agg_data, weighted_col, intensive)
@@ -174,6 +198,8 @@ for weighted_col in [nothing, "timestay (1/30days)"]
     sorted_species_eez,sorted_I, sorted_V, sorted_countries_species, sorted_species = fixed_point_sort(species_eez, Isp, Vsp, [int_to_eez[eez] for eez in eezs], [int_to_species[sp] for sp in unique(agg_data.Species)])
     push!(importances, sorted_I)
     push!(vulnerabilities, sorted_V)
+    push!(Countries_sorted, sorted_countries_species)
+    push!(Species_sorted, sorted_species)
     p = heatmap(sorted_species_eez',
             xflip=true,
             yflip=true, 
@@ -185,7 +211,11 @@ for weighted_col in [nothing, "timestay (1/30days)"]
             c=cgrad([:white, :orange]),
             ylabel="EEZ",
             xlabel="Species",
+            # legendfontsize = 200,
+            # xguidefontsize = 14, 
+            # yguidefontsize = 14,
             # size=(800, 800),
+            # fontsize = 5,
             bottom_margin=5Plots.mm,
             dpi=300)
     w = isnothing(weighted_col) ? "appearence" : "timestay"
@@ -195,8 +225,15 @@ for weighted_col in [nothing, "timestay (1/30days)"]
     CSV.write("percolation/MusRank/sorted_countries_species_$(w)_$i.csv", DataFrame(sorted_countries_species=sorted_countries_species, importances=sorted_I))
     push!(ps, p)
     title!("Species-EEZ matrix$(w), $(i)")
+
     savefig("Nestedness/species_eez_matrix_$(w)_$(i).png")
+    # remove title
+    title!("$(w), $(i)")
     end
 end
 p_tot = plot(ps[1], ps[2], ps[3], ps[4], layout=(2, 2), size=(800, 800), dpi=300)
+# write a 
 savefig(p_tot, "Nestedness/species_eez_matrix_all.png")
+p_tot
+
+plot(vulnerabilities, labels = ["binary extensive" "binary intensive" "weighted extensive" "weighted intensive"])

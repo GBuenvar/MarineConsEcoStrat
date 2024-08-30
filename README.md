@@ -88,16 +88,38 @@ Bipartite network can be projected into a EEZ-EEZ network, where links between E
 
 _communities could be further investigated, showing the distribution of income group, number of species/individuals, distribution of link propertries (degree, weights) of its components_
 
-### Percolation
+## Percolation
 
 There are several ways to compute how to protect the countries
 
 1. Ascending/Descending order of the number of individuals. With/without rich protecting from the beggining.
 
+3. Non-linear ascending/descending
+    1. Compute the number of zones visited by each individual. The individual's weight is $N^{-\alpha}$. 
+        - For $\alpha=0$ zones are protected by the number of individuals. (Linear case)
+        - For $\alpha>0$, individuals that visit less countries have higher weights. 
+        - For $\alpha<0$, individuals that visit more countries have higher weights.
+
+        The paradigmatic case are $\alpha=\pm 1$, and the case $\alpha=0$ was already studied.
+    
+    2. Sum the weights of all individuals that visit an area. 
+    3. Protect the areas in ascending/descending order of the sum.
+
 2. Protecting first those areas that contains the individuals that are easier to protect.
 
+    1. Take the individuals $I$ that visit the fewer number of zones $Z$.
+    2. Take the zone of $Z$ that is visited by more individuals from $I$, protect it.
+    3. Repeat until all are protected.
 
-### Nestedness
+
+
+
+
+
+
+
+
+## MusRak
 
 
 

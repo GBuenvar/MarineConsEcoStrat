@@ -1,6 +1,18 @@
 using CSV, DataFrames, Random, Statistics, Plots, XLSX, ArgParse, LaTeXStrings
 include("percolation_functions.jl")
 
+##
+s = ArgParseSettings()
+@add_arg_table! s begin
+    "--rich_protect", "-r"
+        help = "Start protecting the rich countries"
+        default = false
+        arg_type = Bool
+end
+
+p = parse_args(ARGS, s)
+rich_protect = p["rich_protect"]
+suffix = rich_protect ? "_rich" : ""
 
 ##
 # Read the codes dictionaries of the species and the eezs
@@ -34,6 +46,7 @@ iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs];
 
 
 rich, poor = Rich_Poor_lists(eezs, iso3_eez, economic_data)
+rich = rich_protect ? rich : [0,8]
 ##
 
 
@@ -84,6 +97,7 @@ populations of individuals that visited the same number of eezs.
 """
 function proxy_protection_odds(agg_data)
     # newids = unique(agg_data[:, :newid])
+    eezs = unique(agg_data[:, :EEZ])
     ntot = length(eezs)
     μ = zeros(ntot+1) # μ=μ(n)=<s^m>(n) = s^m * P^m(n) 
     σ2 = zeros(ntot+1) # σ^2=σ^2(n)= s^m * P^m(n) (1-P^m(n)
@@ -134,6 +148,7 @@ function protection_odds(agg_data; start_protecting=[], species=nothing)
     end
     #protect the first eezs
     tot_ids = length(unique(agg_data[:, :newid]))
+    # print("start_protecting: ", start_protecting)
     agg_data = agg_data[agg_data[:, :EEZ] .∉ (start_protecting,), :]
     intially_protected = tot_ids - length(unique(agg_data[:, :newid]))
     # println("Initially protected: ", intially_protected)
@@ -170,15 +185,17 @@ function species_protection_odds(agg_data; threshold=0.5, start_protecting=[])
             agg_data,
             species=s,
             start_protecting=start_protecting)
-        # println(size(prot_species))
-        # println(members_protected_mean)
-        prot_species .+= members_protected_mean .>= st
+            # println(size(prot_species))
+            # println(members_protected_mean)
+            prot_species .+= members_protected_mean .>= st
     end
     return prot_species    
 end
 
 
 ##
+println("computing random percolation...")
+println("Rich countries: ", rich)
 protected_number_mean, protected_number_var = protection_odds(
     agg_data,
     start_protecting=rich)
@@ -193,7 +210,7 @@ prot_species = species_protection_odds(
     )
 
 # save the protected number mean, variance and the species protected
-CSV.write("percolation/uncorrelated_random/protected_rich.csv",
+CSV.write("percolation/uncorrelated_random/protected$suffix.csv",
     DataFrame(
         protected_number_mean=protected_number_mean,
         protected_number_var=protected_number_var,
@@ -215,48 +232,48 @@ plot!(pspecies, collect(0:length(prot_species)-1), prot_species, label=nothing, 
 
 ptot = plot(p1, pspecies, layout=(2,1), size=(800, 800))
 ##
-savefig(ptot, "percolation/figures/uncorrelated_random.png")
-savefig(ptot, "percolation/figures/uncorrelated_random.pdf")
+savefig(ptot, "percolation/figures/uncorrelated_random$suffix.png")
+savefig(ptot, "percolation/figures/uncorrelated_random$suffix.pdf")
 plot(ptot)
 
 ##
 
 
 
-##
-protected_number_mean, protected_number_var = protection_odds(
-    agg_data,
-    )
-protected_number_std = sqrt.(protected_number_var) 
-top_bound = protected_number_mean .+ protected_number_std
-bottom_bound = protected_number_mean .- protected_number_std
+# ##
+# protected_number_mean, protected_number_var = protection_odds(
+#     agg_data,
+#     )
+# protected_number_std = sqrt.(protected_number_var) 
+# top_bound = protected_number_mean .+ protected_number_std
+# bottom_bound = protected_number_mean .- protected_number_std
 
-prot_species = species_protection_odds(
-    agg_data,
-    threshold=0.5,
-    )
+# prot_species = species_protection_odds(
+#     agg_data,
+#     threshold=0.5,
+#     )
 
-# save the protected number mean, variance and the species protected
-CSV.write("percolation/uncorrelated_random/protected.csv",
-    DataFrame(
-        protected_number_mean=protected_number_mean,
-        protected_number_var=protected_number_var,
-        protected_species=prot_species
-        )
-        )
+# # save the protected number mean, variance and the species protected
+# CSV.write("percolation/uncorrelated_random/protected.csv",
+#     DataFrame(
+#         protected_number_mean=protected_number_mean,
+#         protected_number_var=protected_number_var,
+#         protected_species=prot_species
+#         )
+#         )
 
-##
-p1 = plot(
-    xlabel = "Cooperating EEZs",
-    ylabel="Expected number of protected Individuals"
-    )
-plot!(p1, collect(0:length(protected_number_mean)-1), bottom_bound ./ N, fillrange = top_bound ./ N, label=L"\mu\pm \sigma^2", c=:blue, fillalpha=0.3, alpha=0)
-plot!(p1, collect(0:length(protected_number_mean)-1), protected_number_mean ./ N, label=L"\mu", c=:black)
+# ##
+# p1 = plot(
+#     xlabel = "Cooperating EEZs",
+#     ylabel="Expected number of protected Individuals"
+#     )
+# plot!(p1, collect(0:length(protected_number_mean)-1), bottom_bound ./ N, fillrange = top_bound ./ N, label=L"\mu\pm \sigma^2", c=:blue, fillalpha=0.3, alpha=0)
+# plot!(p1, collect(0:length(protected_number_mean)-1), protected_number_mean ./ N, label=L"\mu", c=:black)
 
-pspecies = plot(xlabel="cooperating EEZ", ylabel="Protected Species")
-plot!(pspecies, collect(0:length(prot_species)-1), prot_species, label=nothing, c=:black)
+# pspecies = plot(xlabel="cooperating EEZ", ylabel="Protected Species")
+# plot!(pspecies, collect(0:length(prot_species)-1), prot_species, label=nothing, c=:black)
 
-ptot = plot(p1, pspecies, layout=(2,1), size=(800, 800))
+# ptot = plot(p1, pspecies, layout=(2,1), size=(800, 800))
 
 
 

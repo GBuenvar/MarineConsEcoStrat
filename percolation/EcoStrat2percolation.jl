@@ -1,4 +1,4 @@
-using CSV, DataFrames, Random, Statistics, Plots, XLSX
+using CSV, DataFrames, Random, Statistics, Plots, XLSX, ArgParse
 include("percolation_functions.jl")
 ##
 
@@ -9,6 +9,18 @@ include("percolation_functions.jl")
 # and the number of EEZs protected before each individual is protected.
 
 # Initially, Antarctica, the High Seas, and the EEZs of rich countries are protected (or left out)
+
+s = ArgParseSettings()
+@add_arg_table! s begin
+    "--rich_protect", "-r"
+        help = "Start protecting the rich countries"
+        default = false
+        arg_type = Bool
+end
+
+p = parse_args(ARGS, s)
+rich_protect = p["rich_protect"]
+suffix = rich_protect ? "_rich" : ""
 
 
 ##
@@ -43,13 +55,14 @@ iso3_eez = [eez_to_iso3[int_to_eez[eez]] for eez in eezs];
 ##
 
 rich, poor = Rich_Poor_lists(eezs, iso3_eez, economic_data)
+rich = rich_protect ? rich : [0,8]
 
 protected_times, protected_number = easier_ind_protect(agg_data, start_protecting = rich)
 prot_species_number, prot_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
-CSV.write("percolation/Strat2Eco/protected_times.csv.gz", DataFrame(protected_times=protected_times))
-CSV.write("percolation/Strat2Eco/protected_number.csv.gz", DataFrame(protected_number=protected_number))
-CSV.write("percolation/Strat2Eco/protected_species_times.csv.gz", DataFrame(prot_species_times=prot_species_times))
-CSV.write("percolation/Strat2Eco/protected_species_number.csv.gz", DataFrame(prot_species_number=prot_species_number))
+CSV.write("percolation/Strat2Eco/protected_times$suffix.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/Strat2Eco/protected_number$suffix.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/Strat2Eco/protected_species_times$suffix.csv.gz", DataFrame(prot_species_times=prot_species_times))
+CSV.write("percolation/Strat2Eco/protected_species_number$suffix.csv.gz", DataFrame(prot_species_number=prot_species_number))
 println("files saved at percolation/Strat2Eco")
 
 
@@ -59,5 +72,5 @@ title!("Easier individuals first")
 plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
 plot!(p1, cumsum(prot_species_number)./N_species, label="species (50% of individuals)", color = "red")
 plot!(p1)
-savefig(p1, "percolation/figures/Strat2Eco.png")
-savefig(p1, "percolation/figures/Strat2Eco.pdf")
+savefig(p1, "percolation/figures/Strat2Eco$suffix.png")
+savefig(p1, "percolation/figures/Strat2Eco$suffix.pdf")

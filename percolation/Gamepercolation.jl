@@ -1,4 +1,4 @@
-using CSV, DataFrames, Random, Statistics, Plots, XLSX
+using CSV, DataFrames, Random, Statistics, Plots, XLSX, ArgParse
 include("percolation_functions.jl")
 ##
 
@@ -7,6 +7,18 @@ include("percolation_functions.jl")
 # se protegen primero las que más individuos P visitan. Cada vez que se protege una EEZ, se recalculan los individuos
 # que son más fáciles de proteger, y se repite el proceso. El output es el numero de individuos protegidos en cada paso
 # y el numero de EEZ protegidas antes de que cada individuo se proteja.
+s = ArgParseSettings()
+@add_arg_table! s begin
+    "--rich_protect", "-r"
+        help = "Start protecting the rich countries"
+        default = true
+        arg_type = Bool
+end
+
+p = parse_args(ARGS, s)
+rich_protect = p["rich_protect"]
+suffix = rich_protect ? "_rich" : ""
+
 
 ##
 # open the full_data_inds.csv.gz file
@@ -25,7 +37,7 @@ eez_to_iso3 = Dict(zip(eez_to_iso3_data.Country, eez_to_iso3_data.ISO_3digit))
 # read the economic data
 economic_data = DataFrame(XLSX.readtable("data/CLASS.xlsx", "List of economies"))
 
-mkpath("percolation/Game")
+mkpath("percolation/RankDegreeAlpha")
 
 ##
 # Read the data, consisting on the newid, the species, the eez and the time spent in the eez    
@@ -89,6 +101,7 @@ end
 ## 
 
 rich, poor = Rich_Poor_lists(eezs, iso3_eez, economic_data)
+rich = rich_protect ? rich : [0,8]
 
 ##
 
@@ -100,13 +113,22 @@ println("Total cost: ", sum(protected_cost))
 println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals") 
 
 
-p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_a_$(α)")
-pcost = plot_protection_cost(protected_cost, "Higher payoff first (a=$α)", savename = "Higher_cost_a_$(α)")
-p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_cost_a_$(α)")
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_a_$(α)$suffix")
+pcost = plot_protection_cost(protected_cost, "Higher payoff first (a=$α)", savename = "Higher_cost_a_$(α)$suffix")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_cost_a_$(α)$suffix")
 
 # show the plots
 plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
 
+# save the results
+# save protected times and number, and species times and number
+CSV.write("percolation/RankDegreeAlpha/protected_times_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/RankDegreeAlpha/protected_number_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/RankDegreeAlpha/protected_species_times_desc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_times=protected_species_times))
+CSV.write("percolation/RankDegreeAlpha/protected_species_number_desc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_number=protected_species_number))
+CSV.write("percolation/RankDegreeAlpha/protected_eezs_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_eezs=protected_eezs))
+CSV.write("percolation/RankDegreeAlpha/protected_cost_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_cost=protected_cost))
+println("files saved at percolation/RankDegreeAlpha")
 
 
 ##
@@ -118,12 +140,23 @@ protected_species_number, protected_species_times = protected_species(protected_
 println("Total cost: ", sum(protected_cost))
 println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals")
 
-p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_a_$(α)")
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_a_$(α)$suffix")
 pcost = plot_protection_cost(protected_cost, "Higher payoff first (a=$α)", savename = "Higher_cost_a_$(α)")
-p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_cost_a_$(α)$suffix")
 
 # show the plots
 plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
+
+
+# save the results
+# save protected times and number, and species times and number
+CSV.write("percolation/RankDegreeAlpha/protected_times_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/RankDegreeAlpha/protected_number_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/RankDegreeAlpha/protected_species_times_desc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_times=protected_species_times))
+CSV.write("percolation/RankDegreeAlpha/protected_species_number_desc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_number=protected_species_number))
+CSV.write("percolation/RankDegreeAlpha/protected_eezs_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_eezs=protected_eezs))
+CSV.write("percolation/RankDegreeAlpha/protected_cost_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_cost=protected_cost))
+println("files saved at percolation/RankDegreeAlpha")
 
 
 ##
@@ -139,12 +172,21 @@ println("Initially $(protected_species_number[1]) species are protected with $(p
 
 ##
 
-p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_a_$(α)")
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_a_$(α)$suffix")
 pcost = plot_protection_cost(protected_cost, "Higher payoff first (a=$α)", savename = "Higher_cost_a_$(α)")
-p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Higher payoff first (a=$α)", savename = "Higher_protected_cost_a_$(α)$suffix")
 
 # show the plots
 plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
+# save the results
+# save protected times and number, and species times and number
+CSV.write("percolation/RankDegreeAlpha/protected_times_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/RankDegreeAlpha/protected_number_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/RankDegreeAlpha/protected_species_times_desc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_times=protected_species_times))
+CSV.write("percolation/RankDegreeAlpha/protected_species_number_desc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_number=protected_species_number))
+CSV.write("percolation/RankDegreeAlpha/protected_eezs_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_eezs=protected_eezs))
+CSV.write("percolation/RankDegreeAlpha/protected_cost_desc_alpha_$α$suffix.csv.gz", DataFrame(protected_cost=protected_cost))
+println("files saved at percolation/RankDegreeAlpha")
 
 
 
@@ -160,13 +202,22 @@ println("Total cost: ", sum(protected_cost))
 println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals") 
 
 ##
-p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_a_$(α)")
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_a_$(α)$suffix")
 pcost = plot_protection_cost(protected_cost, "Lower payoff first (a=$α)", savename = "Lower_cost_a_$(α)")
-p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_cost_a_$(α)$suffix")
 
 # show the plots
 plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
 
+# save the results
+# save protected times and number, and species times and number
+CSV.write("percolation/RankDegreeAlpha/protected_times_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/RankDegreeAlpha/protected_number_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/RankDegreeAlpha/protected_species_times_asc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_times=protected_species_times))
+CSV.write("percolation/RankDegreeAlpha/protected_species_number_asc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_number=protected_species_number))
+CSV.write("percolation/RankDegreeAlpha/protected_eezs_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_eezs=protected_eezs))
+CSV.write("percolation/RankDegreeAlpha/protected_cost_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_cost=protected_cost))
+println("files saved at percolation/RankDegreeAlpha")
 
 ##
 α =0
@@ -177,12 +228,21 @@ println("Total cost: ", sum(protected_cost))
 println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals")
 
 ##
-p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_a_$(α)")
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_a_$(α)$suffix")
 pcost = plot_protection_cost(protected_cost, "Lower payoff first (a=$α)", savename = "Lower_cost_a_$(α)")
-p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_cost_a_$(α)$suffix")
 
 # show the plots
 plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
+# save the results
+# save protected times and number, and species times and number
+CSV.write("percolation/RankDegreeAlpha/protected_times_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/RankDegreeAlpha/protected_number_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/RankDegreeAlpha/protected_species_times_asc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_times=protected_species_times))
+CSV.write("percolation/RankDegreeAlpha/protected_species_number_asc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_number=protected_species_number))
+CSV.write("percolation/RankDegreeAlpha/protected_eezs_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_eezs=protected_eezs))
+CSV.write("percolation/RankDegreeAlpha/protected_cost_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_cost=protected_cost))
+println("files saved at percolation/RankDegreeAlpha")
 
 ##
 α = -1
@@ -193,10 +253,19 @@ println("Total cost: ", sum(protected_cost))
 println("Initially $(protected_species_number[1]) species are protected with $(protected_number[1]) individuals") 
 ##
 
-p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_a_$(α)")
+p1 = plot_protected(protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_a_$(α)$suffix")
 pcost = plot_protection_cost(protected_cost, "Lower payoff first (a=$α)", savename = "Lower_cost_a_$(α)")
-p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_cost_a_$(α)")
+p3 = plot_protection_cost_per_individual(protected_cost, protected_number, protected_species_number, N, N_species, "Lower payoff first (a=$α)", savename = "Lower_protected_cost_a_$(α)$suffix")
 
 # show the plots
 plot(p1, pcost, p3, layout = (1, 3), size = (1200, 400))
+# save the results
+# save protected times and number, and species times and number
+CSV.write("percolation/RankDegreeAlpha/protected_times_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/RankDegreeAlpha/protected_number_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/RankDegreeAlpha/protected_species_times_asc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_times=protected_species_times))
+CSV.write("percolation/RankDegreeAlpha/protected_species_number_asc_alpha_$α$suffix.csv.gz", DataFrame(prot_species_number=protected_species_number))
+CSV.write("percolation/RankDegreeAlpha/protected_eezs_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_eezs=protected_eezs))
+CSV.write("percolation/RankDegreeAlpha/protected_cost_asc_alpha_$α$suffix.csv.gz", DataFrame(protected_cost=protected_cost))
+println("files saved at percolation/RankDegreeAlpha")
 

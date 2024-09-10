@@ -426,13 +426,14 @@ end
 
 ##
 # create a function that calls to the previous function n times, saves the results as Vector{Vector{Int64}} and returns the median of the number of protected individuals at each time
-function random_perc(data, n; start_protecting = [0, 8], seed = 1234)
+function random_perc(data, n; start_protecting = [0, 8], seed = 1234, verbose=false)
     rng = MersenneTwister(seed)
     newids = unique(data[:, :newid])
     eezlist = unique(data[:, :EEZ])
     prot_times = zeros(Int64, (n, length(newids)))
     prot_number = zeros(Int64, (n, length(eezlist) - length(start_protecting) + 1))
     for i in 1:n
+        verbose ? println("run $i") : nothing
         prot_times[i, :], prot_number[i, :] = random_perc_1_rep(data; start_protecting= start_protecting, rng = rng, newids = newids, eezlist = eezlist)
     end   
     return prot_times, prot_number
@@ -694,6 +695,15 @@ function degree_ranking(
 end
 
 ##
+"""
+ranked_ids_remove_eezs(
+    data::DataFrame,
+    start_protecting::Vector{Int} = [0,8],
+    include_eez_resistant::Bool=false,
+    weight_column=nothing
+    )
+
+"""
 function ranked_ids_remove_eezs(
     data::DataFrame,
     start_protecting::Vector{Int} = [0,8],
@@ -725,7 +735,7 @@ function ranked_ids_remove_eezs(
     end
     unprotected_ids = new_unprotected_ids # update the list of unprotected individuals
     unprotected_eezs = copy(iterated_eezs)
-    ii = 2 
+    ii = 2 # start in 2 becouse 1 is the start_protecting
     steps = 0
     while size(data, 1) > 0
         
@@ -736,9 +746,9 @@ function ranked_ids_remove_eezs(
         if include_eez_resistant
             proj_df = projected_graph(data, :newid, :EEZ, weight_column)
             sorted_N = sort(
-                combine(groupby(data, :newid), nrow), 
+                combine(groupby(data, :newid), nrow),
                 :newid
-                )  
+                )
             # remove the isolated nodes from the list 
             sorted_N = sorted_N[sorted_N.newid .∈ (proj_df.node_A, ), :][:, :nrow]
             higher_rank = degree_ranking(
@@ -781,7 +791,8 @@ function ranked_ids_remove_eezs(
         # the new EEZs are cooperating
         new_unprotected_ids = unique(data[:, :newid])
         new_protected_ids = setdiff(unprotected_ids, new_unprotected_ids)
-        index_add = ii + n_prot - 1
+        # index_add = ii + n_prot - 1 # if protected after all protect
+        index_add = ii  # if protected before all protect
         prot_number[index_add] = length(new_protected_ids)
         prot_times[ids .∈ (new_protected_ids,)] .= index_add - 1
 

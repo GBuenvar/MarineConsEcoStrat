@@ -61,6 +61,12 @@ Rich protected first
 # create a DataFrame to store projected graph
 ##
 
+
+"""
+not include number of eez visited
+not include time spent
+"""
+
 include_eezs_visited = false
 weight_column = nothing
 @time prot_times, prot_number, prot_eezs, eez_prot_times = ranked_ids_remove_eezs(
@@ -123,6 +129,12 @@ plot(p1, p2)
 
 ##
 
+
+"""
+include number of eez visited
+not include time spent
+"""
+
 include_eezs_visited = true
 weight_column = nothing
 @time prot_times, prot_number, prot_eezs, eez_prot_times = ranked_ids_remove_eezs(
@@ -184,6 +196,12 @@ plot(p1, p2)
 
 ##
 
+"""
+not include number of eez visited
+include time spent
+"""
+
+
 include_eezs_visited = false
 weight_column = "timestay (1/30days)"
 @time prot_times, prot_number, prot_eezs, eez_prot_times = ranked_ids_remove_eezs(
@@ -243,6 +261,12 @@ p2 = histogram(
 plot(p1, p2)
 
 ##
+
+"""
+include number of eez visited
+include time spent
+"""
+
 
 include_eezs_visited = true
 weight_column = "timestay (1/30days)"
@@ -311,6 +335,12 @@ Rich do not protect first
 """
 
 ##
+
+"""
+not include number of eez visited
+include time spent
+"""
+
 
 include_eezs_visited = false
 weight_column = nothing
@@ -552,7 +582,3 @@ p2 = histogram(
     legend=:topleft
     )
 plot(p1, p2)
-
-
-
-cgrad()

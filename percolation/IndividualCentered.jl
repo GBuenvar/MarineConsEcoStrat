@@ -38,7 +38,7 @@ eez_to_iso3 = Dict(zip(eez_to_iso3_data.Country, eez_to_iso3_data.ISO_3digit))
 # read the economic data
 economic_data = DataFrame(XLSX.readtable("data/CLASS.xlsx", "List of economies"))
 
-mkpath("percolation/Strat2Eco")
+mkpath("percolation/IndCenter")
 
 ##
 # Read the data, consisting on the newid, the species, the eez and the time spent in the eez    
@@ -59,11 +59,11 @@ rich = rich_protect ? rich : [0,8]
 
 protected_times, protected_number = easier_ind_protect(agg_data, start_protecting = rich)
 prot_species_number, prot_species_times = protected_species(protected_number, protected_times, id_to_species_int, newids)
-CSV.write("percolation/Strat2Eco/protected_times$suffix.csv.gz", DataFrame(protected_times=protected_times))
-CSV.write("percolation/Strat2Eco/protected_number$suffix.csv.gz", DataFrame(protected_number=protected_number))
-CSV.write("percolation/Strat2Eco/protected_species_times$suffix.csv.gz", DataFrame(prot_species_times=prot_species_times))
-CSV.write("percolation/Strat2Eco/protected_species_number$suffix.csv.gz", DataFrame(prot_species_number=prot_species_number))
-println("files saved at percolation/Strat2Eco")
+CSV.write("percolation/IndCenter/protected_times$suffix.csv.gz", DataFrame(protected_times=protected_times))
+CSV.write("percolation/IndCenter/protected_number$suffix.csv.gz", DataFrame(protected_number=protected_number))
+CSV.write("percolation/IndCenter/protected_species_times$suffix.csv.gz", DataFrame(prot_species_times=prot_species_times))
+CSV.write("percolation/IndCenter/protected_species_number$suffix.csv.gz", DataFrame(prot_species_number=prot_species_number))
+println("files saved at percolation/IndCenter")
 
 
 
@@ -72,5 +72,5 @@ title!("Easier individuals first")
 plot!(p1, cumsum(protected_number)./ N, label="individuals", color = "black")
 plot!(p1, cumsum(prot_species_number)./N_species, label="species (50% of individuals)", color = "red")
 plot!(p1)
-savefig(p1, "percolation/figures/Strat2Eco$suffix.png")
-savefig(p1, "percolation/figures/Strat2Eco$suffix.pdf")
+savefig(p1, "percolation/figures/IndCenter$suffix.png")
+savefig(p1, "percolation/figures/IndCenter$suffix.pdf")

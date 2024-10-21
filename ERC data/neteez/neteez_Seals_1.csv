@@ -1,0 +1,32 @@
+Source,Target,Weight
+Australia,New Zealand,0.0006365919961460377
+United States,Mexico,0.0050668123789180865
+United States,Canada,0.0015399135661417714
+United States,Russia,0.00039739704932690873
+Mexico,United States,0.05917159763313609
+Antarctica,South Georgia & the South Sandwich Is.,1.6929712067922004e-05
+France,United Kingdom,0.012657428964124428
+France,Belgium,0.0018302431909343357
+United Kingdom,France,0.0030183168490802528
+United Kingdom,Ireland,0.004234624350359035
+United Kingdom,Belgium,0.0001932816093524871
+United Kingdom,Netherlands,0.000443181063868834
+United Kingdom,Germany,1.7571055395680645e-05
+Ireland,United Kingdom,0.04258170048376431
+Belgium,France,0.18977272727272726
+Belgium,Netherlands,0.4409090909090909
+Belgium,United Kingdom,0.048863636363636366
+Netherlands,Belgium,0.026822445285502716
+Netherlands,United Kingdom,0.02402501234161593
+Netherlands,Germany,0.01431627447753826
+Germany,Netherlands,0.006561679790026247
+Germany,United Kingdom,0.05774278215223097
+New Zealand,Australia,0.004023013366786348
+Canada,United States,0.0004936214848751292
+Canada,Greenland,0.001095222669566693
+Russia,United States,0.021393034825870648
+Greenland,Canada,0.05532503457814661
+Uruguay,Argentina,0.007804682809685812
+Argentina,Uruguay,0.8867924528301887
+French Southern & Antarctic Lands,Heard I. & McDonald Is.,0.029940357327056084
+Heard I. & McDonald Is.,French Southern & Antarctic Lands,0.054464585431352804

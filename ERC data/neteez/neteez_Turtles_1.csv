@@ -1,0 +1,249 @@
+Source,Target,Weight
+Australia,Indonesia,0.0006342982354976358
+Australia,New Caledonia,0.00011532695190866105
+Australia,Joint development area Australia/East Timor,5.766347595433053e-05
+Brazil,Uruguay,0.009095502779181405
+Brazil,French Guiana,0.0012632642748863063
+United States,The Bahamas,0.0002054686265212581
+United States,Canada,0.0031452505136715663
+United States,Mexico,4.74158368895211e-05
+American Samoa,Tonga,0.03636363636363636
+Tonga,Fiji,0.15384615384615385
+Cook Is.,French Polynesia,1.0
+Mexico,Cuba,0.001664632116302297
+Mexico,Belize,0.00011097547442015315
+Mexico,United States,0.0002219509488403063
+Argentina,Uruguay,0.008354755784061696
+Uruguay,Argentina,0.06513409961685823
+Uruguay,Brazil,0.0561941251596424
+United Arab Emirates,Iran,0.006207966890843249
+United Arab Emirates,Saudi Arabia,0.0038799793067770304
+United Arab Emirates,Qatar,0.01008794619762028
+Iran,United Arab Emirates,0.033381712626995644
+Iran,Kuwait,0.32946298984034833
+Iran,Qatar,0.01451378809869376
+Iran,Bahrain,0.001451378809869376
+Iran,Saudi Arabia,0.002902757619738752
+Iran,Oman,0.00725689404934688
+Iran,Pakistan,0.010159651669085631
+Oman,Yemen,0.0261913423062932
+Oman,Iran,0.005456529647144416
+Oman,Pakistan,0.0007275372862859222
+Oman,United Arab Emirates,0.0003637686431429611
+Maldives,Sri Lanka,0.02564102564102564
+Indonesia,Palau,0.01897269782508098
+Indonesia,Philippines,0.0009254974548819991
+Indonesia,Malaysia,0.0009254974548819991
+Indonesia,Papua New Guinea,0.0009254974548819991
+Cuba,United States,0.07142857142857142
+The Bahamas,United States,0.018890200708382526
+Seychelles,Madagascar,0.00048320850446967865
+Seychelles,Mauritius,0.00024160425223483932
+Seychelles,Comoros,0.00024160425223483932
+Mauritius,Seychelles,0.1271186440677966
+French Southern & Antarctic Lands,Madagascar,0.06521739130434782
+French Southern & Antarctic Lands,Comoros,0.043478260869565216
+French Southern & Antarctic Lands,Seychelles,0.043478260869565216
+Madagascar,Seychelles,0.003048780487804878
+Madagascar,French Southern & Antarctic Lands,0.01524390243902439
+Somalia,Yemen,0.014098690835850957
+Comoros,Tanzania,0.05263157894736842
+Tanzania,Kenya,0.018867924528301886
+Kuwait,Iran,0.036019433740995144
+Kuwait,Saudi Arabia,0.002680515999329871
+Saudi Arabia,Kuwait,0.001996007984031936
+Saudi Arabia,United Arab Emirates,0.00998003992015968
+Saudi Arabia,Qatar,0.03992015968063872
+Bahrain,Qatar,0.02586206896551724
+Bahrain,Iran,0.003694581280788177
+Qatar,Bahrain,0.027918781725888325
+Qatar,Iran,0.02030456852791878
+Qatar,United Arab Emirates,0.1649746192893401
+Qatar,Saudi Arabia,0.025380710659898477
+Yemen,Djibouti,0.001607717041800643
+Yemen,Oman,0.04983922829581994
+Yemen,Somalia,0.00964630225080386
+Djibouti,Eritrea,0.2857142857142857
+Netherlands Antilles,Antigua & Barbuda,0.02321724709784411
+Netherlands Antilles,"Virgin Islands, British",0.003316749585406302
+Netherlands Antilles,Anguilla,0.008291873963515755
+Anguilla,"Virgin Islands, British",0.09278350515463918
+Anguilla,Antigua & Barbuda,0.041237113402061855
+"Virgin Islands, British",Anguilla,0.1111111111111111
+"Virgin Islands, British",Puerto Rico,0.12345679012345678
+"Virgin Islands, British",United States Virgin Islands,0.09876543209876543
+Puerto Rico,Dominican Republic,0.06557377049180328
+Puerto Rico,United States Virgin Islands,0.03278688524590164
+Puerto Rico,"Virgin Islands, British",0.06557377049180328
+Puerto Rico,Venezuela,0.01639344262295082
+Dominican Republic,Haiti,0.07920792079207921
+Dominican Republic,Turks & Caicos Is.,0.0024752475247524753
+Haiti,Dominican Republic,0.14634146341463414
+Haiti,Jamaica,0.21951219512195122
+Haiti,Colombia,0.012195121951219513
+Jamaica,Colombia,0.08
+Jamaica,Joint regime Colombia/Jamaica,0.05142857142857143
+Jamaica,Honduras,0.011428571428571429
+Jamaica,Haiti,0.03428571428571429
+Joint regime Colombia/Jamaica,Jamaica,0.2692307692307692
+Joint regime Colombia/Jamaica,Colombia,0.46153846153846156
+Joint regime Colombia/Jamaica,Nicaragua,0.11538461538461539
+Joint regime Colombia/Jamaica,Honduras,0.11538461538461539
+Honduras,Nicaragua,0.009375
+Honduras,Joint regime Colombia/Jamaica,0.003125
+Honduras,Jamaica,0.00625
+Nicaragua,Honduras,0.11214953271028037
+Nicaragua,Joint regime Colombia/Jamaica,0.018691588785046728
+Nicaragua,Costa Rica,0.07476635514018691
+Colombia,Jamaica,0.035
+Colombia,Joint regime Colombia/Jamaica,0.035
+Colombia,Nicaragua,0.02
+Colombia,Honduras,0.005
+Colombia,Costa Rica,0.02
+Turks & Caicos Is.,The Bahamas,0.6
+United States Virgin Islands,Puerto Rico,0.5789473684210527
+Dominica,Martinique,0.005085529357374018
+Dominica,Guadeloupe,0.08136846971798428
+Dominica,St. Lucia,0.005547850208044383
+Dominica,Antigua & Barbuda,0.0004623208506703652
+Dominica,Venezuela,0.006934812760055479
+Dominica,Barbados,0.009708737864077669
+St. Lucia,Dominica,0.14093959731543623
+St. Lucia,Barbados,0.09395973154362416
+St. Lucia,Martinique,0.11409395973154363
+St. Lucia,Saint Vincent and the Grenadines,0.020134228187919462
+St. Lucia,Grenada,0.013422818791946308
+Guadeloupe,Dominica,0.20376712328767124
+Guadeloupe,Antigua & Barbuda,0.09931506849315068
+Guadeloupe,Venezuela,0.00684931506849315
+Antigua & Barbuda,Guadeloupe,0.20476190476190476
+Antigua & Barbuda,Netherlands Antilles,0.023809523809523808
+Antigua & Barbuda,Dominica,0.004761904761904762
+Antigua & Barbuda,Anguilla,0.023809523809523808
+Martinique,St. Lucia,0.08045977011494253
+Martinique,Dominica,0.28735632183908044
+Martinique,Barbados,0.034482758620689655
+Venezuela,Guadeloupe,0.06565656565656566
+Venezuela,Grenada,0.04040404040404041
+Venezuela,United States Virgin Islands,0.025252525252525252
+Venezuela,"Bonaire, Sint-Eustasius, Saba",0.025252525252525252
+Venezuela,Colombia,0.010101010101010102
+Venezuela,Guyana,0.005050505050505051
+Venezuela,Trinidad & Tobago,0.025252525252525252
+Barbados,Dominica,0.05093833780160858
+Barbados,Martinique,0.01876675603217158
+Barbados,Guyana,0.01876675603217158
+Barbados,Grenada,0.029490616621983913
+Barbados,Saint Vincent and the Grenadines,0.0160857908847185
+Barbados,St. Lucia,0.002680965147453083
+Barbados,Trinidad & Tobago,0.02680965147453083
+Portugal,Spain,0.013454960091220068
+Portugal,Morocco,0.002508551881413911
+Spain,Portugal,0.002539318479685452
+Spain,Morocco,0.0027031454783748364
+Spain,Algeria,0.0625819134993447
+Spain,Italy,0.0021297509829619923
+Spain,Western Sahara,0.003112712975098296
+Western Sahara,Spain,0.030405405405405407
+Western Sahara,Disputed Western Sahara/Mauritania,0.0033783783783783786
+Canada,United States,0.06546707503828483
+French Guiana,Brazil,0.1111111111111111
+French Guiana,Suriname,0.05555555555555555
+Gabon,Equatorial Guinea,0.015799256505576207
+Gabon,Sao Tome & Principe,0.0032527881040892194
+Gabon,Congo,0.010571561338289962
+Equatorial Guinea,Gabon,0.04736842105263158
+Sao Tome & Principe,Equatorial Guinea,0.42857142857142855
+Sao Tome & Principe,Gabon,0.20408163265306123
+Grenada,Saint Vincent and the Grenadines,0.10335195530726257
+Grenada,St. Lucia,0.019553072625698324
+Grenada,Venezuela,0.025139664804469275
+Grenada,Barbados,0.00558659217877095
+Grenada,Trinidad & Tobago,0.002793296089385475
+Saint Vincent and the Grenadines,Grenada,0.17
+Saint Vincent and the Grenadines,St. Lucia,0.22
+Saint Vincent and the Grenadines,Barbados,0.13
+Cape Verde,Senegal,0.007228915662650603
+Cape Verde,Mauritania,0.018072289156626505
+Costa Rica,Ecuador,0.01083815028901734
+Costa Rica,Nicaragua,0.002167630057803468
+Costa Rica,Panama,0.0050578034682080926
+Micronesia,Marshall Is.,0.012213740458015267
+Micronesia,Northern Marinana Islands-Guam,0.0061068702290076335
+United States Minor Outlying Islands,Marshall Is.,0.005714285714285714
+Panama,Nicaragua,0.041666666666666664
+Palau,Indonesia,0.056433408577878104
+Palau,Micronesia,0.011286681715575621
+Palau,Philippines,0.002257336343115124
+Philippines,Indonesia,0.03278688524590164
+Philippines,Taiwan,0.00819672131147541
+Malaysia,Spratly Islands,0.03333333333333333
+Malaysia,Indonesia,0.03333333333333333
+Brunei,Malaysia,0.3333333333333333
+Marshall Is.,United States Minor Outlying Islands,0.007692307692307693
+Marshall Is.,Micronesia,0.007692307692307693
+China,Vietnam,0.09090909090909091
+Vietnam,Indonesia,0.15384615384615385
+Solomon Is.,Australia,0.045454545454545456
+Trinidad & Tobago,Grenada,0.0658682634730539
+Trinidad & Tobago,Barbados,0.017964071856287425
+Trinidad & Tobago,Venezuela,0.005988023952095809
+Guyana,Suriname,0.07142857142857142
+Guyana,Trinidad & Tobago,0.07142857142857142
+Guyana,Barbados,0.03571428571428571
+Guyana,Venezuela,0.14285714285714285
+Congo,Gabon,0.17164179104477612
+Congo,Angola,0.029850746268656716
+"Congo, DRC",Gabon,1.0
+Angola,Congo,0.017142857142857144
+Angola,Namibia,0.04
+"Bonaire, Sint-Eustasius, Saba",Aruba,1.0
+Aruba,Venezuela,0.2222222222222222
+Aruba,Colombia,0.3333333333333333
+Namibia,South Africa,0.019748653500897665
+Namibia,Angola,0.02154398563734291
+South Africa,Mozambique,0.01011804384485666
+South Africa,Namibia,0.002529510961214165
+Mozambique,South Africa,0.0784313725490196
+Pakistan,Oman,0.01694915254237288
+Pakistan,Iran,0.01694915254237288
+Morocco,Spain,0.07179487179487179
+Morocco,Portugal,0.006837606837606838
+Algeria,Spain,0.03890341012704395
+Algeria,Italy,0.0018843839280286913
+Algeria,Tunisia,0.005349218892468543
+Italy,Algeria,0.01988360814742968
+Italy,Tunisia,0.027158098933074686
+Italy,Croatia,0.011639185257032008
+Italy,Albania,0.0072744907856450046
+Italy,Greece,0.025703200775945685
+Italy,Malta,0.027158098933074686
+Tunisia,Algeria,0.017882947976878612
+Tunisia,Italy,0.002167630057803468
+Tunisia,Libya,0.009031791907514452
+Libya,Tunisia,0.0033764772087788407
+Libya,Egypt,0.0010129431626336523
+Libya,Malta,0.0005627462014631402
+Egypt,Israel,0.034220532319391636
+Israel,Cyprus,0.125
+Cyprus,Egypt,0.08333333333333333
+Greece,Albania,0.004133107248834251
+Greece,Italy,0.0030733361593895717
+Greece,Malta,0.000105977108944468
+Croatia,Italy,0.004147982062780269
+Croatia,Bosnia & Herzegovina,0.002802690582959641
+Albania,Greece,0.011324570273003034
+Albania,Italy,0.0020222446916076846
+Albania,Croatia,0.004448938321536906
+Bosnia & Herzegovina,Croatia,1.0
+Malta,Italy,0.05398457583547558
+Malta,Libya,0.11568123393316196
+Malta,Greece,0.033419023136246784
+Malta,Tunisia,0.010282776349614395
+Senegal,Mauritania,0.12135922330097088
+Senegal,Cape Verde,0.014563106796116505
+Senegal,The Gambia,0.009708737864077669
+Mauritania,Senegal,0.030303030303030304
+Mauritania,Cape Verde,0.04242424242424243
+The Gambia,Cape Verde,1.0
+Disputed Western Sahara/Mauritania,Cape Verde,0.2857142857142857

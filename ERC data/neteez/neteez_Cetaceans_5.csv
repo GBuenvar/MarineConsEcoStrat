@@ -1,0 +1,55 @@
+Source,Target,Weight
+Canada,United States,0.0007824113919098662
+Canada,Greenland,0.001017134809482826
+United States,Mexico,0.0026722005856099156
+United States,Canada,0.0006538363135002985
+United States,The Bahamas,0.001904653608892174
+Mexico,United States,0.01437949359174742
+Portugal,Spain,0.0004889975550122249
+Spain,Italy,0.125
+Russia,United States,0.01037344398340249
+Antarctica,Chile,0.016186097752166267
+Antarctica,Argentina,0.0008262536810660791
+Chile,Antarctica,0.012575687005123428
+Chile,Peru,0.004657661853749418
+Peru,Ecuador,0.1688073394495413
+Ecuador,Peru,0.24875621890547264
+Ecuador,Colombia,0.30845771144278605
+Colombia,Ecuador,0.1794871794871795
+Argentina,Chile,1.0
+Gabon,Angola,0.075
+Gabon,Congo,0.1625
+Gabon,Equatorial Guinea,0.05
+Gabon,Joint regime Nigeria/Sao Tome and Principe,0.05
+Gabon,Cameroon,0.05
+Gabon,Sao Tome & Principe,0.0125
+Sao Tome & Principe,Nigeria,1.0
+Joint regime Nigeria/Sao Tome and Principe,Nigeria,1.0
+Nigeria,Equatorial Guinea,0.10526315789473684
+Nigeria,Cameroon,0.21052631578947367
+Nigeria,Ghana,0.10526315789473684
+Cameroon,Gabon,0.038461538461538464
+Cameroon,Equatorial Guinea,0.23076923076923078
+Cameroon,Nigeria,0.4230769230769231
+Congo,Angola,0.45454545454545453
+Congo,Gabon,0.22727272727272727
+Angola,Namibia,0.15492957746478872
+Equatorial Guinea,Cameroon,0.25
+Equatorial Guinea,Gabon,0.75
+New Caledonia,Norfolk I.,0.10498366013071896
+New Caledonia,New Zealand,0.0016339869281045752
+New Caledonia,Australia,0.02246732026143791
+Fiji,New Zealand,1.0
+Norfolk I.,New Zealand,0.3202479338842975
+Norfolk I.,Australia,0.0371900826446281
+Australia,New Caledonia,0.0031847133757961785
+Mayotte,Madagascar,0.23267326732673269
+Mayotte,Comoros,0.2524752475247525
+Comoros,Madagascar,0.08823529411764706
+Comoros,Mayotte,0.43137254901960786
+Madagascar,French Southern & Antarctic Lands,0.02142857142857143
+French Southern & Antarctic Lands,Madagascar,1.0
+The Bahamas,United States,0.38636363636363635
+The Bahamas,Cuba,0.09090909090909091
+Dominican Republic,The Bahamas,0.75
+Cuba,The Bahamas,0.9230769230769231

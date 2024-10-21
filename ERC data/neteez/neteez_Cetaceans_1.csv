@@ -1,0 +1,50 @@
+Source,Target,Weight
+Canada,United States,0.00024536635083613305
+Canada,Greenland,3.774866935940508e-05
+United States,Mexico,0.0008871956788351643
+United States,Canada,0.00020875192443180334
+United States,Russia,2.6093990553975418e-05
+United States,The Bahamas,0.0007045377449573364
+Mexico,United States,0.003657793131477342
+Spain,France,0.16666666666666666
+Spain,Portugal,0.16666666666666666
+Russia,United States,0.0022615906520919715
+Antarctica,Chile,0.0011528041962072743
+Antarctica,Argentina,3.842680654024247e-05
+Chile,Argentina,0.000859106529209622
+Peru,Ecuador,0.032467532467532464
+Ecuador,Peru,0.07303370786516854
+Ecuador,Colombia,0.06741573033707865
+Colombia,Ecuador,0.05090909090909091
+Argentina,Chile,0.6538461538461539
+Gabon,Congo,0.042105263157894736
+Gabon,Sao Tome & Principe,0.021052631578947368
+Sao Tome & Principe,Equatorial Guinea,0.25
+Sao Tome & Principe,Joint regime Nigeria/Sao Tome and Principe,0.25
+Nigeria,Equatorial Guinea,0.06896551724137931
+Nigeria,Cameroon,0.13793103448275862
+Nigeria,Benin,0.06896551724137931
+Equatorial Guinea,Nigeria,0.1875
+Equatorial Guinea,Gabon,0.1875
+Equatorial Guinea,Cameroon,0.0625
+Congo,Angola,0.25
+Congo,Gabon,0.08333333333333333
+Angola,Namibia,0.06741573033707865
+Cameroon,Nigeria,0.4117647058823529
+Cameroon,Equatorial Guinea,0.058823529411764705
+Benin,Ghana,0.6666666666666666
+New Caledonia,Fiji,0.0010273972602739725
+New Caledonia,Norfolk I.,0.02089041095890411
+New Caledonia,Australia,0.0027397260273972603
+Norfolk I.,New Zealand,0.05328596802841918
+Australia,New Caledonia,0.00273224043715847
+Madagascar,French Southern & Antarctic Lands,0.0374331550802139
+Comoros,Madagascar,0.05511811023622047
+Comoros,Mayotte,0.3858267716535433
+Mayotte,Madagascar,0.07894736842105263
+Mayotte,Comoros,0.17982456140350878
+French Southern & Antarctic Lands,Madagascar,0.75
+The Bahamas,United States,0.1782608695652174
+The Bahamas,Cuba,0.030434782608695653
+Dominican Republic,The Bahamas,0.16129032258064516
+Cuba,The Bahamas,0.5263157894736842
